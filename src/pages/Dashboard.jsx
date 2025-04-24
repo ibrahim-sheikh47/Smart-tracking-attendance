@@ -9,22 +9,16 @@ const Dashboard = () => {
     const [staffList, setStaffList] = useState([]);
     const staffRef = collection(firestoreDb, "Staff");
 
+    const [checkIns, setCheckIns] = useState([]);
+    const checkInsRef = collection(firestoreDb, "CheckIns");
+
+    console.log("Check Ins Ref Key = ",checkInsRef.id);
     useEffect(() => {
-        const getAllStaff = async () => {
-            try {
-                const data = await getDocs(staffRef);
-                const filteredStaff = data.docs.map((staffDoc) => ({
-                    ...staffDoc.data(), // A Snapshot basically
-                    staffId: staffDoc.id,
-                }));
-                setStaffList(filteredStaff);
-                console.log(filteredStaff);
-            }
-            catch (e) {
-                console.error(e);
-            }
-        };
-        getAllStaff();
+        getAllStaffMembers(staffList,setStaffList, staffRef)
+    }, []);
+
+    useEffect(() => {
+        getAllCheckIns(checkIns,setCheckIns, checkInsRef)
     }, []);
 
     return (
@@ -35,7 +29,7 @@ const Dashboard = () => {
 
                 <div className="flex mt-10 justify-between">
                     <DashboardCard title={"Total Staff"} value={staffList.length} icon={assets.totalStaff}/>
-                    <DashboardCard title={"Check-ins Today"} value={240} icon={assets.checkInsToday}/>
+                    <DashboardCard title={"Check-ins Today"} value={checkIns.length} icon={assets.checkInsToday}/>
                     <DashboardCard title={"Absentees"} value={240} icon={assets.totalAbsents}/>
                     <DashboardCard title={"Late Arrivals"} value={240} icon={assets.lateArrivals}/>
 
@@ -45,4 +39,42 @@ const Dashboard = () => {
         </div>
     )
 }
+
+function getAllCheckIns(checkIns,setCheckIns, checkInsRef){
+    const getAllCheckIns = async () => {
+        try {
+            const data = await getDocs(checkInsRef);
+            const filteredCheckIns = data.docs.map((checkInDoc) => ({
+                ...checkInDoc.data(), // A Snapshot basically
+                employeeId: checkInDoc.id,
+            }));
+            setCheckIns(filteredCheckIns);
+            console.log(filteredCheckIns);
+        }
+        catch (e) {
+            console.error(e);
+        }
+    };
+    getAllCheckIns();
+}
+
+
+function getAllStaffMembers(staffList,setStaffList, staffRef){
+    const getAllStaff = async () => {
+        try {
+            const data = await getDocs(staffRef);
+            const filteredStaff = data.docs.map((staffDoc) => ({
+                ...staffDoc.data(), // A Snapshot basically
+                staffId: staffDoc.id,
+            }));
+            setStaffList(filteredStaff);
+            console.log(filteredStaff);
+        }
+        catch (e) {
+            console.error(e);
+        }
+    };
+    getAllStaff();
+}
+
 export default Dashboard
