@@ -12,7 +12,9 @@ export const Auth = () => {
     const signInEmailPass = async () => {
         try {
             await signInWithEmailAndPassword(auth, email, password);
-        }catch (error) {console.error(error);}
+        }catch (error) {
+            console.error(error);
+        }
     }
 
     const logOut = async () => {

@@ -3,6 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import {Auth} from "./components/auth.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
 
 // Placeholder components for other pages
 const ManageStaff = () => <div className="p-6">Manage Staff Content</div>;
@@ -15,7 +16,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Auth />} />
+        <Route path="/" element={<Dashboard />} />
       </Routes>
       {/*<Layout>*/}
       {/*  <Routes>*/}
