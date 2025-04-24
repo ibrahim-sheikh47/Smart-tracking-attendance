@@ -33,7 +33,7 @@ const Dashboard = () => {
                 <h2 className="text-black">Dashboard</h2>
                 <h4 className="mt-2 text-gray-600">Overview of all staff activities.</h4>
 
-                <div className="flex mt-10 gap-5 justify-center content-center">
+                <div className="flex mt-10 justify-between">
                     <DashboardCard title={"Total Staff"} value={staffList.length} icon={assets.totalStaff}/>
                     <DashboardCard title={"Check-ins Today"} value={240} icon={assets.checkInsToday}/>
                     <DashboardCard title={"Absentees"} value={240} icon={assets.totalAbsents}/>

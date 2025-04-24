@@ -8,19 +8,13 @@ import {
   ListItemText,
   Typography,
 } from "@mui/material";
-import {
-  Dashboard as DashboardIcon,
-  People as PeopleIcon,
-  AttachMoney as PayrollIcon,
-  Assessment as ReportsIcon,
-  Settings as SettingsIcon,
-} from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
 import assets from "../constants/assets";
 
 const Sidebar = () => {
   const location = useLocation();
   const currentPath = location.pathname;
+
 
   const menuItems = [
     { text: "Dashboard", icon: assets.sidebarIcon1, path: "/dashboard" },
@@ -29,6 +23,7 @@ const Sidebar = () => {
     { text: "Reports", icon: assets.sidebarIcon4, path: "/reports" },
     { text: "Settings", icon:assets.sidebarIcon5, path: "/settings" },
   ];
+
 
   return (
     <Drawer
