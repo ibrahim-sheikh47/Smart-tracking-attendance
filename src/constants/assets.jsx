@@ -7,8 +7,10 @@ import totalStaff    from "../assets/icons/total_staff.svg"
 import checkInsToday  from "../assets/icons/check_ins_today.svg"
 import totalAbsents  from "../assets/icons/total_absents.svg"
 import lateArrivals  from "../assets/icons/total_late_arrivals.svg"
+import dp1 from "../assets/images/dp_1.png"
 
 export default {
+    dp1,
     totalStaff,
     checkInsToday,
     totalAbsents,
