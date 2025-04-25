@@ -1,35 +1,100 @@
-import React, { useState } from "react";
+import React from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import CustomButton from "../../ui_components/CustomButton";
 import { Divider } from "@mui/material";
 import InputField from "../../ui_components/InputField";
 import assets from "../../constants/assets";
 
+// Define validation schema with Yup
+const validationSchema = yup.object().shape({
+  firstName: yup
+    .string()
+    .required("First name is required")
+    .min(2, "First name must be at least 2 characters"),
+  lastName: yup
+    .string()
+    .required("Last name is required")
+    .min(2, "Last name must be at least 2 characters"),
+  department: yup.string().required("Department is required"),
+  bio: yup.string().max(200, "Bio must not exceed 200 characters"),
+  email: yup
+    .string()
+    .email("Please enter a valid email")
+    .required("Email is required"),
+  phoneNumber: yup
+    .string()
+    .required("Phone number is required")
+    .matches(/^[0-9+\-\s()]+$/, "Please enter a valid phone number"),
+  password: yup
+    .string()
+    .required("Password is required")
+    .min(8, "Password must be at least 8 characters")
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      "Password must contain uppercase, lowercase, number and special character"
+    ),
+  confirmPassword: yup
+    .string()
+    .required("Please confirm your password")
+    .oneOf([yup.ref("password"), null], "Passwords must match"),
+  designation: yup.string().required("Designation is required"),
+  hourlyRate: yup
+    .number()
+    .typeError("Hourly rate must be a number")
+    .positive("Hourly rate must be positive")
+    .required("Hourly rate is required"),
+  workingHours: yup
+    .number()
+    .typeError("Working hours must be a number")
+    .positive("Working hours must be positive")
+    .max(168, "Working hours cannot exceed 168 hours per week")
+    .required("Working hours is required"),
+  overtimeRate: yup
+    .number()
+    .typeError("Overtime rate must be a number")
+    .positive("Overtime rate must be positive")
+    .required("Overtime rate is required"),
+});
+
 const AddNewStaff = () => {
-  // Manage form state using useState
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    department: "",
-    bio: "",
-    email: "",
-    phoneNumber: "",
-    password: "",
-    confirmPassword: "",
-    designation: "",
-    hourlyRate: "",
-    workingHours: "",
-    overtimeRate: "",
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(validationSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      department: "",
+      bio: "",
+      email: "",
+      phoneNumber: "",
+      password: "",
+      confirmPassword: "",
+      designation: "",
+      hourlyRate: "",
+      workingHours: "",
+      overtimeRate: "",
+    },
   });
 
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+  // Handle form submission
+  const onSubmit = (data) => {
+    console.log("Form submitted:", data);
+    // Here you would typically send data to an API
   };
 
+  // Department options
+  const departmentOptions = [
+    { value: "hr", label: "HR" },
+    { value: "finance", label: "Finance" },
+    { value: "it", label: "IT" },
+  ];
+
+  console.log("rerender");
   return (
     <div className="p-10">
       <div className="flex items-center justify-between">
@@ -43,16 +108,19 @@ const AddNewStaff = () => {
             style={
               "w-[200px] bg-[#F9F9F9] border border-[#D9DADF] text-black h-10"
             }
-            onClick={() => navigation("/manage-staff/AddNewStaff")}
+            onClick={() => window.history.back()}
           />
           <CustomButton
             title="Create New Employee"
             style={"w-[200px] text-white h-10"}
-            onClick={() => navigation("/manage-staff/AddNewStaff")}
+            onClick={handleSubmit(onSubmit)}
           />
         </div>
       </div>
-      <form action="" className="bg-[#F9F9F9] px-8 py-6 mt-5 rounded-lg">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="bg-[#F9F9F9] px-8 py-6 mt-5 rounded-lg"
+      >
         <h1 className="text-xl font-semibold">Personal Info</h1>
         <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
         <div className="flex gap-5">
@@ -66,10 +134,9 @@ const AddNewStaff = () => {
                   label="First Name"
                   type="text"
                   placeholder="John"
-                  value={formData.firstName}
-                  minLength={3}
-                  onChange={handleInputChange}
+                  register={register}
                   name="firstName"
+                  error={errors.firstName}
                   required
                 />
               </div>
@@ -78,9 +145,9 @@ const AddNewStaff = () => {
                   label="Last Name"
                   placeholder="Doe"
                   type="text"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
+                  register={register}
                   name="lastName"
+                  error={errors.lastName}
                   required
                 />
               </div>
@@ -89,23 +156,19 @@ const AddNewStaff = () => {
             <InputField
               label="Department"
               dropdown={true}
-              value={formData.department}
-              onChange={handleInputChange}
+              register={register}
               name="department"
+              error={errors.department}
               required
-              options={[
-                { value: "hr", label: "HR" },
-                { value: "finance", label: "Finance" },
-                { value: "it", label: "IT" },
-              ]}
+              options={departmentOptions}
             />
 
             <InputField
               placeholder="Enter Bio (Max 200 characters)"
               label="Bio"
-              value={formData.bio}
-              onChange={handleInputChange}
+              register={register}
               name="bio"
+              error={errors.bio}
               textarea
               required
             />
@@ -121,9 +184,9 @@ const AddNewStaff = () => {
               label="Email"
               type="email"
               placeholder="Johndoe@gmail.com"
-              value={formData.email}
-              onChange={handleInputChange}
+              register={register}
               name="email"
+              error={errors.email}
               required
             />
           </div>
@@ -131,10 +194,10 @@ const AddNewStaff = () => {
             <InputField
               label="Phone Number"
               placeholder="Enter Phone Number"
-              type="text"
-              value={formData.phoneNumber}
-              onChange={handleInputChange}
+              type="tel"
+              register={register}
               name="phoneNumber"
+              error={errors.phoneNumber}
               required
             />
           </div>
@@ -145,9 +208,9 @@ const AddNewStaff = () => {
               label="Password"
               type="password"
               placeholder="Enter Password"
-              value={formData.password}
-              onChange={handleInputChange}
+              register={register}
               name="password"
+              error={errors.password}
               required
             />
           </div>
@@ -156,9 +219,9 @@ const AddNewStaff = () => {
               label="Confirm Password"
               type="password"
               placeholder="Enter Password"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
+              register={register}
               name="confirmPassword"
+              error={errors.confirmPassword}
               required
             />
           </div>
@@ -173,9 +236,9 @@ const AddNewStaff = () => {
               label="Designation"
               type="text"
               placeholder="Enter Designation"
-              value={formData.designation}
-              onChange={handleInputChange}
+              register={register}
               name="designation"
+              error={errors.designation}
               required
             />
           </div>
@@ -183,10 +246,10 @@ const AddNewStaff = () => {
             <InputField
               label="Hourly Rate"
               placeholder="Define hourly rate"
-              type="text"
-              value={formData.hourlyRate}
-              onChange={handleInputChange}
+              type="number"
+              register={register}
               name="hourlyRate"
+              error={errors.hourlyRate}
               required
             />
           </div>
@@ -195,22 +258,22 @@ const AddNewStaff = () => {
           <div className="flex-1">
             <InputField
               label="Working Hours / Week"
-              type="text"
+              type="number"
               placeholder="Enter working hours per week"
-              value={formData.workingHours}
-              onChange={handleInputChange}
+              register={register}
               name="workingHours"
+              error={errors.workingHours}
               required
             />
           </div>
           <div className="flex-1">
             <InputField
               label="Overtime Hourly Rate"
-              type="text"
+              type="number"
               placeholder="Enter overtime hourly rate"
-              value={formData.overtimeRate}
-              onChange={handleInputChange}
+              register={register}
               name="overtimeRate"
+              error={errors.overtimeRate}
               required
             />
           </div>
