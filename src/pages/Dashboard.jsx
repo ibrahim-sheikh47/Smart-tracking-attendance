@@ -4,6 +4,7 @@ import assets from "../constants/assets.jsx";
 import { firestoreDb } from "../config/firebase.jsx";
 import { getDocs, collection } from "firebase/firestore";
 import DataTable from "../ui_components/Table.jsx";
+import EmployeeTable from "../ui_components/Table.jsx";
 
 const Dashboard = () => {
   const [staffList, setStaffList] = useState([]);
@@ -60,7 +61,7 @@ const Dashboard = () => {
         </div>
 
         <div className="mt-10">
-        <DataTable />
+        <EmployeeTable />
         </div>
       </div>
     </div>

@@ -57,14 +57,16 @@ const Sidebar = () => {
             to={item.path}
             className={`mt-5
               ${
-                currentPath === item.path
+                currentPath.startsWith(item.path)
+
                   ? "bg-[#098B710D] text-[#098B71] border border-[#098B711A] rounded-lg"
                   : ""
               }`}
           >
             <ListItemIcon
               className={
-                currentPath === item.path
+                currentPath.startsWith(item.path)
+
                   ? "text-[#098B71] -mr-4"
                   : "text-[#2C3E50] -mr-4"
               }
@@ -74,7 +76,8 @@ const Sidebar = () => {
                 alt=""
                 style={{
                   filter:
-                    currentPath === item.path
+                  currentPath.startsWith(item.path)
+
                       ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
                       : "none",
                 }}
