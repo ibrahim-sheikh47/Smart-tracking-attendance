@@ -23,7 +23,7 @@ const AddEmployeeForm = ({ onAdded }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(firestoreDb, "Employees"), formData);
+      await addDoc(collection(firestoreDb, "NewEmployees"), formData);
       alert("Employee added!");
       setFormData({
         name: "",
