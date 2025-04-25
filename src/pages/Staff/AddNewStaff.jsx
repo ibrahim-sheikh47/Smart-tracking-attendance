@@ -40,17 +40,19 @@ const AddNewStaff = () => {
         <div className="flex items-center gap-2">
           <CustomButton
             title="Cancel"
-            style={"w-[200px] bg-[#F9F9F9] text-black"}
+            style={
+              "w-[200px] bg-[#F9F9F9] border border-[#D9DADF] text-black h-10"
+            }
             onClick={() => navigation("/manage-staff/AddNewStaff")}
           />
           <CustomButton
-            title="Create A New Staff"
-            style={"w-[200px] text-white"}
+            title="Create New Employee"
+            style={"w-[200px] text-white h-10"}
             onClick={() => navigation("/manage-staff/AddNewStaff")}
           />
         </div>
       </div>
-      <form action="" className="bg-[#F9F9F9] p-5 mt-5 rounded-lg">
+      <form action="" className="bg-[#F9F9F9] px-8 py-6 mt-5 rounded-lg">
         <h1 className="text-xl font-semibold">Personal Info</h1>
         <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
         <div className="flex gap-5">

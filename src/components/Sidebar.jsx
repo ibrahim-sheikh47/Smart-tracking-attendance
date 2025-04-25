@@ -15,15 +15,13 @@ const Sidebar = () => {
   const location = useLocation();
   const currentPath = location.pathname;
 
-
   const menuItems = [
     { text: "Dashboard", icon: assets.sidebarIcon1, path: "/dashboard" },
     { text: "Manage Staff", icon: assets.sidebarIcon2, path: "/manage-staff" },
     { text: "Payroll", icon: assets.sidebarIcon3, path: "/payroll" },
     { text: "Reports", icon: assets.sidebarIcon4, path: "/reports" },
-    { text: "Settings", icon:assets.sidebarIcon5, path: "/settings" },
+    { text: "Settings", icon: assets.sidebarIcon5, path: "/settings" },
   ];
-
 
   return (
     <Drawer
@@ -58,16 +56,14 @@ const Sidebar = () => {
             className={`mt-5
               ${
                 currentPath.startsWith(item.path)
-
-                  ? "bg-[#098B710D] text-[#098B71] border border-[#098B711A] rounded-lg"
+                  ? "bg-[#3DC2960D] text-[#3DC296] border border-[#3DC2961A] rounded-lg"
                   : ""
               }`}
           >
             <ListItemIcon
               className={
                 currentPath.startsWith(item.path)
-
-                  ? "text-[#098B71] -mr-4"
+                  ? "text-[#3DC296] -mr-4"
                   : "text-[#2C3E50] -mr-4"
               }
             >
@@ -75,11 +71,9 @@ const Sidebar = () => {
                 src={item.icon}
                 alt=""
                 style={{
-                  filter:
-                  currentPath.startsWith(item.path)
-
-                      ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
-                      : "none",
+                  filter: currentPath.startsWith(item.path)
+                    ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
+                    : "none",
                 }}
               />
             </ListItemIcon>

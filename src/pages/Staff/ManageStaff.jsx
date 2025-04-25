@@ -126,9 +126,9 @@ export default function ManageStaff() {
       renderCell: () => (
         <div>
           <CustomButton
-            style={"mt-5 w-[170px]"}
-            title={"View Full Report"}
-            icon={<OpenInNewIcon />}
+            style={"mt-5 w-[120px] text-white text-xs hover:bg-gray-700"}
+            title={"View Report"}
+            icon={<OpenInNewIcon sx={{fontSize:16}}/>}
           />
         </div>
       ),
@@ -141,7 +141,7 @@ export default function ManageStaff() {
       renderCell: (params) => (
         <div style={{ flexDirection: "row", alignItems: "center", gap: "" }}>
           <IconButton onClick={() => handleDelete(params.row.id)}>
-            <DeleteIcon color="error" />
+            <DeleteIcon />
           </IconButton>
           <IconButton>
             <EditIcon />
@@ -160,7 +160,7 @@ export default function ManageStaff() {
         </div>
         <CustomButton
           title="Add A New Staff Member"
-          style={"w-[230px]"}
+          style={"w-[230px] text-white h-10 hover:bg-gray-700"}
           icon={<PersonAddOutlinedIcon />}
           onClick={() => navigation("/manage-staff/AddNewStaff")}
         />

@@ -24,7 +24,7 @@ const InputField = ({
           onChange={onChange}
           placeholder={placeholder}
           required={required}
-          className="border border-[#CBD5E1] rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#098B71] focus:outline-[#098B71]"
+          className="border border-[#CBD5E1] rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296]"
           name={name}
           rows="3" // Set rows to 5
           cols="30" // Set cols to 40
@@ -36,7 +36,7 @@ const InputField = ({
             value={value}
             onChange={onChange}
             required={required}
-            className="border border-[#CBD5E1] rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#098B71] focus:outline-[#098B71] appearance-none pr-10 w-full cursor-pointer" // Added pr-10 for padding-right
+            className="border border-[#CBD5E1] rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296] appearance-none pr-10 w-full cursor-pointer" // Added pr-10 for padding-right
             name={name}
           >
             {options?.map((option, index) => (
@@ -57,7 +57,7 @@ const InputField = ({
           onChange={onChange}
           placeholder={placeholder}
           required={required}
-          className="border border-[#CBD5E1] rounded-lg h-10 w-full p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#098B71] focus:outline-[#098B71]"
+          className="border border-[#CBD5E1] rounded-lg h-10 w-full p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296]"
           name={name}
         />
       )}
