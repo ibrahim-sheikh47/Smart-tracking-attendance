@@ -98,7 +98,7 @@ const AddNewStaff = () => {
             />
 
             <InputField
-              placeholder="Enter Bio..."
+              placeholder="Enter Bio (Max 200 characters)"
               label="Bio"
               value={formData.bio}
               onChange={handleInputChange}
