@@ -5,6 +5,7 @@ import KeyboardArrowDownOutlinedIcon from "@mui/icons-material/KeyboardArrowDown
 const InputField = ({
   label,
   type,
+  minLength,
   value,
   onChange,
   placeholder,
@@ -52,6 +53,7 @@ const InputField = ({
         </div>
       ) : (
         <input
+          minLength={minLength}
           type={type}
           value={value}
           onChange={onChange}

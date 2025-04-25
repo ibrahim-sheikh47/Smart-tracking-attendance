@@ -67,6 +67,7 @@ const AddNewStaff = () => {
                   type="text"
                   placeholder="John"
                   value={formData.firstName}
+                  minLength={3}
                   onChange={handleInputChange}
                   name="firstName"
                   required
