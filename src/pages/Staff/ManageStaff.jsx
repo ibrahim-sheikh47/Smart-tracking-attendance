@@ -4,14 +4,15 @@ import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import assets from "../../constants/assets.jsx";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import CustomButton from "../../ui_components/CustomButton.jsx";
 import { useNavigate } from "react-router-dom";
+import Avatar from "@mui/material/Avatar";
+
 // Import Firebase
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
-import {firestoreDb} from "../../config/firebase.jsx";
+import {  firestoreDb } from "../../config/firebase.jsx";
 
 const paginationModel = { page: 0, pageSize: 5 };
 
@@ -20,6 +21,8 @@ export default function ManageStaff() {
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
+
+
 
   // Fetch employees from Firebase
   const fetchEmployees = async () => {
@@ -35,7 +38,9 @@ export default function ManageStaff() {
           name: `${data.firstName} ${data.lastName}`,
           department: data.department,
           status: "Present", // Default status or could be from another field
-          image: assets.dp1, // Default image or could be from another field
+          profileImageUrl: data.profileImageUrl || "", // Use the profile image URL from Firebase
+          firstName: data.firstName,
+          lastName: data.lastName,
           designation: data.designation,
           email: data.email,
           phoneNumber: data.phoneNumber,
@@ -45,6 +50,8 @@ export default function ManageStaff() {
 
       setRows(employeeList);
       setError(null);
+
+
     } catch (error) {
       console.error("Error fetching employees: ", error);
       setError("Failed to load employees. Please try again.");
@@ -61,13 +68,18 @@ export default function ManageStaff() {
   // Delete employee
   const handleDelete = async (id) => {
     try {
-      await deleteDoc(doc(db, "employees", id));
+      await deleteDoc(doc(firestoreDb, "employees", id));
       // Refresh employee list
       fetchEmployees();
     } catch (error) {
       console.error("Error deleting employee: ", error);
       alert("Failed to delete employee. Please try again.");
     }
+  };
+
+  // Get initials for the avatar fallback
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
   };
 
   const columns = [
@@ -77,14 +89,23 @@ export default function ManageStaff() {
       headerName: "Name",
       width: 200,
       renderCell: (params) => (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <img
-                src={params.row.image}
-                alt={params.value}
-                style={{ width: 32, height: 32, borderRadius: "50%" }}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {params.row.profileImageUrl ? (
+            <Avatar
+              src={params.row.profileImageUrl}
+              alt={params.value}
+              sx={{ width: 48, height: 48 }}
             />
-            {params.value}
-          </div>
+          ) : (
+            <Avatar
+              sx={{ width: 48, height: 48, bgcolor: '#3DC296' }}
+              alt={params.value}
+            >
+              {getInitials(params.row.firstName, params.row.lastName)}
+            </Avatar>
+          )}
+          {params.value}
+        </div>
       ),
     },
     { field: "department", headerName: "Department", width: 150 },
@@ -99,13 +120,13 @@ export default function ManageStaff() {
       headerName: "Attendance Report",
       width: 180,
       renderCell: () => (
-          <div>
-            <CustomButton
-                style={"mt-5 w-[120px] text-white text-xs hover:bg-gray-700"}
-                title={"View Report"}
-                icon={<OpenInNewIcon sx={{fontSize:16}}/>}
-            />
-          </div>
+        <div>
+          <CustomButton
+            style={"mt-5 w-[120px] text-white text-xs hover:bg-gray-700"}
+            title={"View Report"}
+            icon={<OpenInNewIcon sx={{fontSize:16}}/>}
+          />
+        </div>
       ),
     },
     {
@@ -114,61 +135,61 @@ export default function ManageStaff() {
       width: 120,
       sortable: false,
       renderCell: (params) => (
-          <div style={{ flexDirection: "row", alignItems: "center" }}>
-            <IconButton onClick={() => handleDelete(params.row.id)}>
-              <DeleteIcon />
-            </IconButton>
-            <IconButton onClick={() => navigation(`/manage-staff/edit/${params.row.id}`)}>
-              <EditIcon />
-            </IconButton>
-          </div>
+        <div style={{ flexDirection: "row", alignItems: "center" }}>
+          <IconButton onClick={() => handleDelete(params.row.id)}>
+            <DeleteIcon />
+          </IconButton>
+          <IconButton onClick={() => navigation(`/manage-staff/edit/${params.row.id}`)}>
+            <EditIcon />
+          </IconButton>
+        </div>
       ),
     },
   ];
 
   return (
-      <div className="p-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-black">Staff Management</h2>
-            <h4 className="mt-2 text-gray-600">Manage all staff here</h4>
-          </div>
-          <CustomButton
-              title="Add A New Staff Member"
-              style={"w-[230px] text-white h-10 hover:bg-gray-700"}
-              icon={<PersonAddOutlinedIcon />}
-              onClick={() => navigation("/manage-staff/AddNewStaff")}
-          />
+    <div className="p-10">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-black">Staff Management</h2>
+          <h4 className="mt-2 text-gray-600">Manage all staff here</h4>
+        </div>
+        <CustomButton
+          title="Add A New Staff Member"
+          style={"w-[230px] text-white h-10 hover:bg-gray-700"}
+          icon={<PersonAddOutlinedIcon />}
+          onClick={() => navigation("/manage-staff/AddNewStaff")}
+        />
+      </div>
+
+      <Paper sx={{ height: 500, width: "100%", marginTop: 5 }}>
+        <div className="flex justify-between items-center p-5 border-b border-[#dadada]">
+          <h1 className="font-bold">Employees</h1>
+          <button
+            onClick={fetchEmployees}
+            className="text-blue-500 hover:text-blue-700"
+          >
+            Refresh
+          </button>
         </div>
 
-        <Paper sx={{ height: 500, width: "100%", marginTop: 5 }}>
-          <div className="flex justify-between items-center p-5 border-b border-[#dadada]">
-            <h1 className="font-bold">Employees</h1>
-            <button
-                onClick={fetchEmployees}
-                className="text-blue-500 hover:text-blue-700"
-            >
-              Refresh
-            </button>
+        {error && (
+          <div className="p-4 text-red-500">
+            {error}
           </div>
+        )}
 
-          {error && (
-              <div className="p-4 text-red-500">
-                {error}
-              </div>
-          )}
-
-          <DataGrid
-              rows={rows}
-              columns={columns}
-              initialState={{ pagination: { paginationModel } }}
-              pageSizeOptions={[5, 10, 25]}
-              checkboxSelection
-              sx={{ border: 0 }}
-              rowHeight={80}
-              loading={loading}
-          />
-        </Paper>
-      </div>
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          initialState={{ pagination: { paginationModel } }}
+          pageSizeOptions={[5, 10, 25]}
+          checkboxSelection
+          sx={{ border: 0 }}
+          rowHeight={80}
+          loading={loading}
+        />
+      </Paper>
+    </div>
   );
 }

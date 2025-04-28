@@ -5,7 +5,7 @@ const CustomButton = ({ title, icon, style, onClick }) => {
     <button
       onClick={onClick}
       className={`bg-[#3DC296] text-sm font-medium flex items-center justify-center
-       gap-2 rounded-lg cursor-pointer h-8 ${style}`}
+       gap-2 rounded-lg cursor-pointer h-8 ${style}  hover:scale-105`}
     >
       <span>{title}</span>
       {icon && <span>{icon}</span>}

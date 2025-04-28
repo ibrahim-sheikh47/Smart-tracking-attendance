@@ -10,6 +10,9 @@ import {
 } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import assets from "../constants/assets";
+import CustomButton from "../ui_components/CustomButton";
+import { signOut } from "firebase/auth";
+import { auth } from "../config/firebase";
 
 const Sidebar = () => {
   const location = useLocation();
@@ -23,6 +26,16 @@ const Sidebar = () => {
     { text: "Settings", icon: assets.sidebarIcon5, path: "/settings" },
   ];
 
+  const handleSignout = async () => {
+    try {
+      await signOut(auth);
+      console.log("User signed out successfully");
+      // Optionally, navigate to login page or home
+    } catch (error) {
+      console.error("Error signing out:", error);
+      alert(error.message);
+    }
+  };
   return (
     <Drawer
       variant="permanent"
@@ -81,6 +94,11 @@ const Sidebar = () => {
           </ListItem>
         ))}
       </List>
+      <CustomButton
+        title={"Logout"}
+        style={"bg-red-500 text-white mt-20"}
+        onClick={handleSignout}
+      />
     </Drawer>
   );
 };

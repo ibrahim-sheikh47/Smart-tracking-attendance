@@ -6,13 +6,12 @@ import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { firestoreDb } from "../config/firebase";
-import AddEmployeeForm from "../components/Form";
 
 export default function EmployeePage() {
   const [rows, setRows] = useState([]);
 
   const fetchData = async () => {
-    const snapshot = await getDocs(collection(firestoreDb, "Movies"));
+    const snapshot = await getDocs(collection(firestoreDb, "employees"));
     const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     setRows(data);
   };
@@ -82,7 +81,6 @@ export default function EmployeePage() {
 
   return (
     <Paper sx={{ padding: 2, height: "auto", width: "100%" }}>
-      <AddEmployeeForm onAdded={fetchData} />
       <h1 className="p-5 font-bold border-b border-[#dadada]">Employees</h1>
       <DataGrid
         rows={rows}
