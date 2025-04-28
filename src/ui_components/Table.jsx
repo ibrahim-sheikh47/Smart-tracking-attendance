@@ -12,13 +12,13 @@ export default function EmployeePage() {
   const [rows, setRows] = useState([]);
 
   const fetchData = async () => {
-    const snapshot = await getDocs(collection(firestoreDb, "LatestAttendance"));
+    const snapshot = await getDocs(collection(firestoreDb, "Movies"));
     const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     setRows(data);
   };
 
   const handleDelete = async (id) => {
-    await deleteDoc(doc(firestoreDb, "employees", id));
+    await deleteDoc(doc(firestoreDb, "Movies", id));
     fetchData();
   };
 
@@ -35,7 +35,7 @@ export default function EmployeePage() {
       renderCell: (params) => (
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <img
-            src={params.row.profilePic  || "https://via.placeholder.com/32"}
+            src={params.row.profilePic || "https://via.placeholder.com/32"}
             alt={params.value}
             style={{ width: 32, height: 32, borderRadius: "50%" }}
           />
@@ -68,13 +68,13 @@ export default function EmployeePage() {
       headerName: "Action",
       width: 80,
       renderCell: (params) => (
-        <div style={{flexDirection:'row' , alignItems:"center" , gap:"5px"}}>
+        <div style={{ flexDirection: "row", alignItems: "center", gap: "5px" }}>
           <IconButton onClick={() => handleDelete(params.row.id)}>
-          <DeleteIcon color="error" />
-        </IconButton>
-        <IconButton>
-          <EditIcon />
-        </IconButton>
+            <DeleteIcon color="error" />
+          </IconButton>
+          <IconButton>
+            <EditIcon />
+          </IconButton>
         </div>
       ),
     },

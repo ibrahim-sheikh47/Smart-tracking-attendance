@@ -12,6 +12,7 @@ import { Auth } from "./components/auth";
 import Dashboard from "./pages/Dashboard";
 import ManageStaff from "./pages/Staff/ManageStaff";
 import AddNewStaff from "./pages/Staff/AddNewStaff";
+import ImgTest from "./ImgTest";
 
 // Placeholder components
 const Payroll = () => <div className="p-6">Payroll Content</div>;
@@ -46,6 +47,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/manage-staff" element={<ManageStaff />} />
             <Route path="/manage-staff/AddNewStaff" element={<AddNewStaff />} />
+            <Route path="/manage-staff/AddNewStaff/testImg" element={<ImgTest />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />

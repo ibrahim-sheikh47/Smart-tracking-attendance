@@ -1,19 +1,23 @@
 import { initializeApp } from "firebase/app";
 import {getAuth} from "firebase/auth";
 import {getFirestore} from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCqtbe-r3ReNOqwDY2r7DJ_9sIn_j4TnG4",
-    authDomain: "smart-attendance-trackin-9957f.firebaseapp.com",
-    projectId: "smart-attendance-trackin-9957f",
-    storageBucket: "smart-attendance-trackin-9957f.firebasestorage.app",
-    messagingSenderId: "849201739961",
-    appId: "1:849201739961:web:9c7a219d2d3bde1d100368",
-    measurementId: "G-Q2NZ3VQZNQ"
-};
+    apiKey: "AIzaSyBC9Hg3gxmocaYQom4pSy8rWc9FyaUXItI",
+    authDomain: "hoc-smart-attendance.firebaseapp.com",
+    projectId: "hoc-smart-attendance",
+    storageBucket: "hoc-smart-attendance.firebasestorage.app",
+    messagingSenderId: "75763552277",
+    appId: "1:75763552277:web:43ab0c3a8df76cde62be1c",
+    measurementId: "G-4FWJN1ZPBM"
+  };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const firestoreDb = getFirestore(app);
+
+export const storage = getStorage(app);
+
 
 
