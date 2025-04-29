@@ -1,17 +1,17 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import CustomButton from "../../ui_components/CustomButton";
 import { Divider } from "@mui/material";
 import InputField from "../../ui_components/InputField";
-import assets from "../../constants/assets";
+// import assets from "../../constants/assets";
 // Import Firebase
-import { doc, setDoc } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { firestoreDb, auth } from "../../config/firebase.jsx";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, functions} from "../../config/firebase.jsx";
+// import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Camera, CameraAlt, DeleteOutline } from "@mui/icons-material";
+
+import {httpsCallable } from "firebase/functions";
 
 // Define validation schema with Yup
 const validationSchema = yup.object().shape({
@@ -56,10 +56,10 @@ const AddNewStaff = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [profileImage, setProfileImage] = useState(null);
-  const [profileImageUrl, setProfileImageUrl] = useState("");
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef(null);
+  // const [profileImage, setProfileImage] = useState(null);
+  // const [profileImageUrl, setProfileImageUrl] = useState("");
+  // const [uploadingImage, setUploadingImage] = useState(false);
+  // const fileInputRef = useRef(null);
 
   const currentUser = auth.currentUser;
   React.useEffect(() => {
@@ -88,50 +88,49 @@ const AddNewStaff = () => {
   });
 
   // Initialize Firebase Storage
-  const storage = getStorage();
 
   // Handle image selection
-  const handleImageChange = (e) => {
-    if (e.target.files[0]) {
-      const selectedImage = e.target.files[0];
-      setProfileImage(selectedImage);
-      // Create a preview URL
-      setProfileImageUrl(URL.createObjectURL(selectedImage));
-    }
-  };
-
-  // Handle image upload to Firebase Storage
-  const uploadImageToFirebase = async (uid) => {
-    if (!profileImage) return null;
-
-    try {
-      setUploadingImage(true);
-
-      // Get file extension
-      const fileExtension = profileImage.name.split('.').pop();
-
-      // Create a reference directly with the uid as the filename
-      const imageRef = ref(storage, `profile-images/${uid}.${fileExtension}`);
-
-      // Upload the image
-      const snapshot = await uploadBytes(imageRef, profileImage);
-
-      // Get the download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
-      return downloadURL;
-    } catch (error) {
-      console.error("Error uploading image: ", error);
-      throw error;
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  // Handle clicking the image area to trigger file input
-  const handleImageClick = () => {
-    fileInputRef.current.click();
-  };
+  // const handleImageChange = (e) => {
+  //   if (e.target.files[0]) {
+  //     const selectedImage = e.target.files[0];
+  //     setProfileImage(selectedImage);
+  //     // Create a preview URL
+  //     //setProfileImageUrl(URL.createObjectURL(selectedImage));
+  //     setProfileImageUrl("https://firebasestorage.googleapis.com/v0/b/hoc-smart-attendance.firebasestorage.app/o/portrait_ali_lal_din_full.jpg?alt=media&token=47306f85-c251-4337-b368-3376a9307c14");
+  //   }
+  // };
+  //
+  // // Handle image upload to Firebase Storage
+  // const uploadImageToFirebase = async (id) => {
+  //   if (!profileImage) return null;
+  //
+  //   try {
+  //     setUploadingImage(true);
+  //
+  //     // Get file extension
+  //     const fileExtension = profileImage.name.split('.').pop();
+  //
+  //     const imageRef = ref(storage, `profile-images/${id}.${fileExtension}`);
+  //
+  //     // Upload the image
+  //     const snapshot = await uploadBytes(imageRef, profileImage);
+  //
+  //     // Get the download URL
+  //     const downloadURL = await getDownloadURL(snapshot.ref);
+  //
+  //     return downloadURL;
+  //   } catch (error) {
+  //     console.error("Error uploading image: ", error);
+  //     throw error;
+  //   } finally {
+  //     setUploadingImage(false);
+  //   }
+  // };
+  //
+  // // Handle clicking the image area to trigger file input
+  // const handleImageClick = () => {
+  //   fileInputRef.current.click();
+  // };
 
   // Handle form submission
   const onSubmit = async (data) => {
@@ -139,58 +138,55 @@ const AddNewStaff = () => {
       setIsSubmitting(true);
       setSubmitError("");
 
-      // Create the user in Firebase Authentication with a static password
-      const staticPassword = "123123"; // static password as requested
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        data.email,
-        staticPassword
-      );
-
-      // Get the user ID from authentication
-      const uid = userCredential.user.uid;
-
       // Upload profile image if available
-      let imageUrl = null;
-      if (profileImage) {
-        imageUrl = await uploadImageToFirebase(uid);
-      }
+      // let imageUrl = null;
+      // if (profileImage) {
+      //   imageUrl = await uploadImageToFirebase(Date.now().toString()); // Use timestamp as temporary ID
+      // }
 
       // Prepare employee data
       const employeeData = {
-        uid: uid, // Include the auth user ID
         firstName: data.firstName,
         lastName: data.lastName,
         department: data.department,
         bio: data.bio || "",
         email: data.email,
+        password: "123123", // Your static password
         phoneNumber: data.phoneNumber,
         designation: data.designation,
         hourlyRate: Number(data.hourlyRate),
         workingHours: Number(data.workingHours),
         overtimeRate: Number(data.overtimeRate),
-        profileImageUrl: imageUrl || "", // Add the profile image URL
-        createdAt: new Date(),
+        // profileImageUrl: imageUrl || "",
       };
 
-      // Store in Firestore with the user's auth ID as the document ID
-      await setDoc(doc(firestoreDb, "employees", uid), employeeData);
+      // Call the Cloud Function
+      const createNewEmployee = httpsCallable(functions, 'createNewEmployee');
+      const result = await createNewEmployee(employeeData);
 
-      console.log("Employee added with Auth ID: ", uid);
+      // If successful and we have image but used timestamp for upload, we might want to rename it
+      // if (result.data.success && profileImage && imageUrl) {
+      //   // Optionally update the image path using the new UID
+      //   // This would require another function to move the file in storage
+      //   // or you could just leave it with the timestamp name
+      // }
+
+      console.log("Employee added with Auth ID: ", result.data.uid);
+
+
       setSubmitSuccess(true);
 
       // Reset form after successful submission
       reset();
-      setProfileImage(null);
-      setProfileImageUrl("");
+      // setProfileImage(null);
+      // setProfileImageUrl("");
 
       // Reset success message after 3 seconds
       setTimeout(() => {
         setSubmitSuccess(false);
       }, 3000);
+      console.log(auth.currentUser);
 
-
-      console.log("Current user after creating employee (refetch):", auth.currentUser);
     } catch (error) {
       console.error("Error adding employee: ", error);
       setSubmitError(`Failed to add employee: ${error.message}`);
@@ -230,7 +226,7 @@ const AddNewStaff = () => {
             title={isSubmitting ? "Submitting..." : "Create New Employee"}
             style={"w-[200px] text-white h-10"}
             onClick={handleSubmit(onSubmit)}
-            disabled={isSubmitting || uploadingImage}
+            // disabled={isSubmitting || uploadingImage}
           />
         </div>
       </div>
@@ -254,43 +250,43 @@ const AddNewStaff = () => {
         <h1 className="text-xl font-semibold">Personal Info</h1>
         <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
         <div className="flex gap-5">
-          <div
-            className="w-[25%] flex flex-col items-center justify-center gap-3 border border-gray-300 rounded-2xl cursor-pointer h-70 hover:bg-green-50 mb-1 relative"
-            onClick={handleImageClick}
-          >
-            {profileImageUrl ? (
-              <>
-                <div className="relative w-full h-full overflow-hidden rounded-2xl">
-                  <img
-                    src={profileImageUrl}
-                    className="w-full h-full object-cover"
-                    alt="Profile Preview"
-                  />
-                  <div
-                    className="absolute bottom-1 right-1 bg-green-500 w-7 h-7 flex justify-center items-center rounded-full cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleImageClick();
-                    }}
-                  >
-                    <CameraAlt fontSize="x-small" className="text-white" />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <img src={assets.placeholderDp} className="w-20 h-20" alt="" />
-                <p className="text-sm font-bold text-[#3DC296]">Upload Image</p>
-              </>
-            )}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-              accept="image/*"
-              className="hidden"
-            />
-          </div>
+          {/*<div*/}
+          {/*  className="w-[25%] flex flex-col items-center justify-center gap-3 border border-gray-300 rounded-2xl cursor-pointer h-70 hover:bg-green-50 mb-1 relative"*/}
+          {/*  onClick={handleImageClick}*/}
+          {/*>*/}
+          {/*  {profileImageUrl ? (*/}
+          {/*    <>*/}
+          {/*      <div className="relative w-full h-full overflow-hidden rounded-2xl">*/}
+          {/*        <img*/}
+          {/*          src={profileImageUrl}*/}
+          {/*          className="w-full h-full object-cover"*/}
+          {/*          alt="Profile Preview"*/}
+          {/*        />*/}
+          {/*        <div*/}
+          {/*          className="absolute bottom-1 right-1 bg-green-500 w-7 h-7 flex justify-center items-center rounded-full cursor-pointer"*/}
+          {/*          onClick={(e) => {*/}
+          {/*            e.stopPropagation();*/}
+          {/*            handleImageClick();*/}
+          {/*          }}*/}
+          {/*        >*/}
+          {/*          <CameraAlt fontSize="x-small" className="text-white" />*/}
+          {/*        </div>*/}
+          {/*      </div>*/}
+          {/*    </>*/}
+          {/*  ) : (*/}
+          {/*    <>*/}
+          {/*      <img src={assets.placeholderDp} className="w-20 h-20" alt="" />*/}
+          {/*      <p className="text-sm font-bold text-[#3DC296]">Upload Image</p>*/}
+          {/*    </>*/}
+          {/*  )}*/}
+          {/*  <input*/}
+          {/*    type="file"*/}
+          {/*    ref={fileInputRef}*/}
+          {/*    onChange={handleImageChange}*/}
+          {/*    accept="image/*"*/}
+          {/*    className="hidden"*/}
+          {/*  />*/}
+          {/*</div>*/}
           <div className="w-[75%] flex flex-col gap-3">
             <div className="flex gap-2">
               <div className="flex-1">
