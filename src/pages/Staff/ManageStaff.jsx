@@ -12,7 +12,7 @@ import Avatar from "@mui/material/Avatar";
 
 // Import Firebase
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
-import {  firestoreDb } from "../../config/firebase.jsx";
+import { firestoreDb } from "../../config/firebase.jsx";
 
 const paginationModel = { page: 0, pageSize: 5 };
 
@@ -22,8 +22,6 @@ export default function ManageStaff() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
 
-
-
   // Fetch employees from Firebase
   const fetchEmployees = async () => {
     try {
@@ -31,27 +29,26 @@ export default function ManageStaff() {
       const employeesCollection = collection(firestoreDb, "employees");
       const employeeSnapshot = await getDocs(employeesCollection);
 
-      const employeeList = employeeSnapshot.docs.map(doc => {
+      const employeeList = employeeSnapshot.docs.map((doc, index) => {
         const data = doc.data();
         return {
-          id: doc.id,
+          id: (index + 1).toString(), // Sequential display ID
+          firestoreId: doc.id, // Preserve original ID for edit/delete
           name: `${data.firstName} ${data.lastName}`,
           department: data.department,
-          status: "Present", // Default status or could be from another field
-          profileImageUrl: data.profileImageUrl || "", // Use the profile image URL from Firebase
+          status: "Present",
+          profileImageUrl: data.profileImageUrl || "",
           firstName: data.firstName,
           lastName: data.lastName,
           designation: data.designation,
           email: data.email,
           phoneNumber: data.phoneNumber,
-          hourlyRate: data.hourlyRate
+          hourlyRate: data.hourlyRate,
         };
       });
 
       setRows(employeeList);
       setError(null);
-
-
     } catch (error) {
       console.error("Error fetching employees: ", error);
       setError("Failed to load employees. Please try again.");
@@ -66,24 +63,24 @@ export default function ManageStaff() {
   }, []);
 
   // Delete employee
-  const handleDelete = async (id) => {
+  const handleDelete = async (firestoreId) => {
     try {
-      await deleteDoc(doc(firestoreDb, "employees", id));
-      // Refresh employee list
+      await deleteDoc(doc(firestoreDb, "employees", firestoreId));
       fetchEmployees();
     } catch (error) {
       console.error("Error deleting employee: ", error);
-      alert("Failed to delete employee. Please try again.");
     }
   };
 
   // Get initials for the avatar fallback
   const getInitials = (firstName, lastName) => {
-    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
+    return `${firstName?.charAt(0) || ""}${
+      lastName?.charAt(0) || ""
+    }`.toUpperCase();
   };
 
   const columns = [
-    { field: "id", headerName: "ID", width: 220 },
+    { field: "id", headerName: "ID", width: 20 },
     {
       field: "name",
       headerName: "Name",
@@ -98,7 +95,7 @@ export default function ManageStaff() {
             />
           ) : (
             <Avatar
-              sx={{ width: 48, height: 48, bgcolor: '#3DC296' }}
+              sx={{ width: 48, height: 48, bgcolor: "#3DC296" }}
               alt={params.value}
             >
               {getInitials(params.row.firstName, params.row.lastName)}
@@ -119,12 +116,13 @@ export default function ManageStaff() {
       field: "attendanceReport",
       headerName: "Attendance Report",
       width: 180,
-      renderCell: () => (
+      renderCell: (params) => (
         <div>
           <CustomButton
             style={"mt-5 w-[120px] text-white text-xs hover:bg-gray-700"}
             title={"View Report"}
-            icon={<OpenInNewIcon sx={{fontSize:16}}/>}
+            icon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
+            onClick={() => navigation(`/reports?id=${params.row.firestoreId}`)}
           />
         </div>
       ),
@@ -136,10 +134,10 @@ export default function ManageStaff() {
       sortable: false,
       renderCell: (params) => (
         <div style={{ flexDirection: "row", alignItems: "center" }}>
-          <IconButton onClick={() => handleDelete(params.row.id)}>
+          <IconButton onClick={() => handleDelete(params.row.firestoreId)}>
             <DeleteIcon />
           </IconButton>
-          <IconButton onClick={() => navigation(`/manage-staff/edit/${params.row.id}`)}>
+          <IconButton>
             <EditIcon />
           </IconButton>
         </div>
@@ -173,11 +171,7 @@ export default function ManageStaff() {
           </button>
         </div>
 
-        {error && (
-          <div className="p-4 text-red-500">
-            {error}
-          </div>
-        )}
+        {error && <div className="p-4 text-red-500">{error}</div>}
 
         <DataGrid
           rows={rows}

@@ -1,17 +1,18 @@
 import React, { useState } from "react";
+import ReactDOM from "react-dom/client";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import CustomButton from "../../ui_components/CustomButton";
 import { Divider } from "@mui/material";
 import InputField from "../../ui_components/InputField";
-// import assets from "../../constants/assets";
 // Import Firebase
-import { auth, functions} from "../../config/firebase.jsx";
-// import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Camera, CameraAlt, DeleteOutline } from "@mui/icons-material";
-
-import {httpsCallable } from "firebase/functions";
+import { auth, functions } from "../../config/firebase.jsx";
+import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
+import { httpsCallable } from "firebase/functions";
+import { getFirestore, doc, setDoc } from "firebase/firestore";
+// Import QR Code library
+import QRCode from "react-qr-code";
 
 // Define validation schema with Yup
 const validationSchema = yup.object().shape({
@@ -56,10 +57,7 @@ const AddNewStaff = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  // const [profileImage, setProfileImage] = useState(null);
-  // const [profileImageUrl, setProfileImageUrl] = useState("");
-  // const [uploadingImage, setUploadingImage] = useState(false);
-  // const fileInputRef = useRef(null);
+  const [generatingQR, setGeneratingQR] = useState(false);
 
   const currentUser = auth.currentUser;
   React.useEffect(() => {
@@ -74,63 +72,100 @@ const AddNewStaff = () => {
   } = useForm({
     resolver: yupResolver(validationSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      department: "",
-      bio: "",
-      email: "",
-      phoneNumber: "",
-      designation: "",
-      hourlyRate: "",
-      workingHours: "",
-      overtimeRate: "",
+      firstName: "Testing",
+      lastName: "User ",
+      department: "IT",
+      bio: "Hi I am a testing user",
+      email: "Testinguser@gmail.com",
+      phoneNumber: "03456789098",
+      designation: "Developer",
+      hourlyRate: "69",
+      workingHours: "7",
+      overtimeRate: "54",
     },
   });
 
-  // Initialize Firebase Storage
+  // Function to generate QR code based on employee data and upload to Firebase Storage
+  const generateAndUploadQRCode = async (employeeData) => {
+    try {
+      setGeneratingQR(true);
 
-  // Handle image selection
-  // const handleImageChange = (e) => {
-  //   if (e.target.files[0]) {
-  //     const selectedImage = e.target.files[0];
-  //     setProfileImage(selectedImage);
-  //     // Create a preview URL
-  //     //setProfileImageUrl(URL.createObjectURL(selectedImage));
-  //     setProfileImageUrl("https://firebasestorage.googleapis.com/v0/b/hoc-smart-attendance.firebasestorage.app/o/portrait_ali_lal_din_full.jpg?alt=media&token=47306f85-c251-4337-b368-3376a9307c14");
-  //   }
-  // };
-  //
-  // // Handle image upload to Firebase Storage
-  // const uploadImageToFirebase = async (id) => {
-  //   if (!profileImage) return null;
-  //
-  //   try {
-  //     setUploadingImage(true);
-  //
-  //     // Get file extension
-  //     const fileExtension = profileImage.name.split('.').pop();
-  //
-  //     const imageRef = ref(storage, `profile-images/${id}.${fileExtension}`);
-  //
-  //     // Upload the image
-  //     const snapshot = await uploadBytes(imageRef, profileImage);
-  //
-  //     // Get the download URL
-  //     const downloadURL = await getDownloadURL(snapshot.ref);
-  //
-  //     return downloadURL;
-  //   } catch (error) {
-  //     console.error("Error uploading image: ", error);
-  //     throw error;
-  //   } finally {
-  //     setUploadingImage(false);
-  //   }
-  // };
-  //
-  // // Handle clicking the image area to trigger file input
-  // const handleImageClick = () => {
-  //   fileInputRef.current.click();
-  // };
+      // Create QR code data - include key employee info
+      const qrData = JSON.stringify({
+        id: employeeData.uid,
+        name: `${employeeData.firstName} ${employeeData.lastName}`,
+        email: employeeData.email,
+        designation: employeeData.designation,
+        department: employeeData.department
+      });
+
+      // Create a canvas element to render the QR code
+      const canvas = document.createElement("canvas");
+      const qrCodeElement = document.createElement("div");
+      document.body.appendChild(qrCodeElement);
+
+      // Create a temporary React component with the QR code
+      const tempQrCode = React.createElement(QRCode, {
+        value: qrData,
+        size: 300,
+        level: "H"
+      });
+
+      // Render the QR code
+      const root = ReactDOM.createRoot(qrCodeElement);
+      root.render(tempQrCode);
+
+      // Wait a moment for the SVG to render
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Find the SVG element
+      const svg = qrCodeElement.querySelector("svg");
+
+      // Convert SVG to canvas
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const img = new Image();
+
+      // Wait for the image to load
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+      });
+
+      // Draw the image on the canvas
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+
+      // Get the data URL from the canvas
+      const dataUrl = canvas.toDataURL("image/png");
+
+      // Clean up the temporary elements
+      document.body.removeChild(qrCodeElement);
+
+      // Upload to Firebase Storage
+      const storage = getStorage();
+      const qrRef = storageRef(storage, `employee-qrcodes/${employeeData.uid}.png`);
+
+      // Remove the data URL prefix (data:image/png;base64,)
+      const qrImageBase64 = dataUrl.split(',')[1];
+
+      // Upload base64 image data
+      await uploadString(qrRef, qrImageBase64, 'base64', {
+        contentType: 'image/png'
+      });
+
+      // Get the download URL
+      const qrCodeUrl = await getDownloadURL(qrRef);
+
+      return qrCodeUrl;
+    } catch (error) {
+      console.error("Error generating or uploading QR code:", error);
+      throw error;
+    } finally {
+      setGeneratingQR(false);
+    }
+  };
 
   // Handle form submission
   const onSubmit = async (data) => {
@@ -138,13 +173,6 @@ const AddNewStaff = () => {
       setIsSubmitting(true);
       setSubmitError("");
 
-      // Upload profile image if available
-      // let imageUrl = null;
-      // if (profileImage) {
-      //   imageUrl = await uploadImageToFirebase(Date.now().toString()); // Use timestamp as temporary ID
-      // }
-
-      // Prepare employee data
       const employeeData = {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -157,35 +185,36 @@ const AddNewStaff = () => {
         hourlyRate: Number(data.hourlyRate),
         workingHours: Number(data.workingHours),
         overtimeRate: Number(data.overtimeRate),
-        // profileImageUrl: imageUrl || "",
       };
 
-      // Call the Cloud Function
+      // Call the Cloud Function to create the employee
       const createNewEmployee = httpsCallable(functions, 'createNewEmployee');
       const result = await createNewEmployee(employeeData);
 
-      // If successful and we have image but used timestamp for upload, we might want to rename it
-      // if (result.data.success && profileImage && imageUrl) {
-      //   // Optionally update the image path using the new UID
-      //   // This would require another function to move the file in storage
-      //   // or you could just leave it with the timestamp name
-      // }
-
       console.log("Employee added with Auth ID: ", result.data.uid);
 
+      // Generate QR code for the employee and upload to Storage
+      const employeeWithUid = { ...employeeData, uid: result.data.uid };
+      const qrCodeUrl = await generateAndUploadQRCode(employeeWithUid);
+
+      // Update the employee document with the QR code URL directly in Firestore
+      const db = getFirestore();
+      await setDoc(doc(db, "employees", result.data.uid), {
+        ...employeeData,
+        qrCodeUrl: qrCodeUrl,
+        qrCodeGeneratedAt: new Date()
+      }, { merge: true });
+
+      console.log("Employee QR code created and saved:", qrCodeUrl);
 
       setSubmitSuccess(true);
 
       // Reset form after successful submission
       reset();
-      // setProfileImage(null);
-      // setProfileImageUrl("");
-
       // Reset success message after 3 seconds
       setTimeout(() => {
         setSubmitSuccess(false);
       }, 3000);
-      console.log(auth.currentUser);
 
     } catch (error) {
       console.error("Error adding employee: ", error);
@@ -223,17 +252,17 @@ const AddNewStaff = () => {
             onClick={() => window.history.back()}
           />
           <CustomButton
-            title={isSubmitting ? "Submitting..." : "Create New Employee"}
+            title={isSubmitting || generatingQR ? "Processing..." : "Create New Employee"}
             style={"w-[200px] text-white h-10"}
             onClick={handleSubmit(onSubmit)}
-            // disabled={isSubmitting || uploadingImage}
+            disabled={isSubmitting || generatingQR}
           />
         </div>
       </div>
 
       {submitSuccess && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mt-4">
-          <span className="block sm:inline">Employee added successfully!</span>
+          <span className="block sm:inline">Employee added successfully with QR code!</span>
         </div>
       )}
 
@@ -250,44 +279,7 @@ const AddNewStaff = () => {
         <h1 className="text-xl font-semibold">Personal Info</h1>
         <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
         <div className="flex gap-5">
-          {/*<div*/}
-          {/*  className="w-[25%] flex flex-col items-center justify-center gap-3 border border-gray-300 rounded-2xl cursor-pointer h-70 hover:bg-green-50 mb-1 relative"*/}
-          {/*  onClick={handleImageClick}*/}
-          {/*>*/}
-          {/*  {profileImageUrl ? (*/}
-          {/*    <>*/}
-          {/*      <div className="relative w-full h-full overflow-hidden rounded-2xl">*/}
-          {/*        <img*/}
-          {/*          src={profileImageUrl}*/}
-          {/*          className="w-full h-full object-cover"*/}
-          {/*          alt="Profile Preview"*/}
-          {/*        />*/}
-          {/*        <div*/}
-          {/*          className="absolute bottom-1 right-1 bg-green-500 w-7 h-7 flex justify-center items-center rounded-full cursor-pointer"*/}
-          {/*          onClick={(e) => {*/}
-          {/*            e.stopPropagation();*/}
-          {/*            handleImageClick();*/}
-          {/*          }}*/}
-          {/*        >*/}
-          {/*          <CameraAlt fontSize="x-small" className="text-white" />*/}
-          {/*        </div>*/}
-          {/*      </div>*/}
-          {/*    </>*/}
-          {/*  ) : (*/}
-          {/*    <>*/}
-          {/*      <img src={assets.placeholderDp} className="w-20 h-20" alt="" />*/}
-          {/*      <p className="text-sm font-bold text-[#3DC296]">Upload Image</p>*/}
-          {/*    </>*/}
-          {/*  )}*/}
-          {/*  <input*/}
-          {/*    type="file"*/}
-          {/*    ref={fileInputRef}*/}
-          {/*    onChange={handleImageChange}*/}
-          {/*    accept="image/*"*/}
-          {/*    className="hidden"*/}
-          {/*  />*/}
-          {/*</div>*/}
-          <div className="w-[75%] flex flex-col gap-3">
+          <div className="w-full flex flex-col gap-3">
             <div className="flex gap-2">
               <div className="flex-1">
                 <InputField

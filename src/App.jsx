@@ -13,10 +13,10 @@ import Dashboard from "./pages/Dashboard";
 import ManageStaff from "./pages/Staff/ManageStaff";
 import AddNewStaff from "./pages/Staff/AddNewStaff";
 import ImgTest from "./ImgTest";
+import Reports from "./pages/Reports/StaffReport";
 
 // Placeholder components
 const Payroll = () => <div className="p-6">Payroll Content</div>;
-const Reports = () => <div className="p-6">Reports Content</div>;
 const Settings = () => <div className="p-6">Settings Content</div>;
 
 function App() {

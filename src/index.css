@@ -3,3 +3,7 @@
 * {
   font-family: "Public Sans", sans-serif;
 }
+.axis-label:hover {
+  fill: #3DC296 !important; /* Green color to match your theme */
+  cursor: pointer;
+}

@@ -9,8 +9,16 @@ import totalAbsents from "../assets/icons/total_absents.svg";
 import lateArrivals from "../assets/icons/total_late_arrivals.svg";
 import dp1 from "../assets/images/dp_1.png";
 import placeholderDp from "../assets/icons/placeholderDp.svg";
+import presentIcon from "../assets/icons/presentIcon.svg";
+import leavesIcon from "../assets/icons/leavesIcon.svg";
+import onTimeIcon from "../assets/icons/onTimeIcon.svg";
+import overTimeIcon from "../assets/icons/overTimeIcon.svg";
 
 export default {
+  presentIcon,
+  leavesIcon,
+  onTimeIcon,
+  overTimeIcon,
   placeholderDp,
   dp1,
   totalStaff,
