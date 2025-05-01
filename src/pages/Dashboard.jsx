@@ -6,10 +6,8 @@ import { getDocs, collection } from "firebase/firestore";
 import DataTable from "../ui_components/Table.jsx";
 import EmployeeTable from "../ui_components/Table.jsx";
 import CustomButton from "../ui_components/CustomButton.jsx";
-import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
-  const navigateTo = useNavigate();
   const [staffList, setStaffList] = useState([]);
   const staffRef = collection(firestoreDb, "Staff");
 
@@ -34,7 +32,7 @@ const Dashboard = () => {
 
   return (
     <div>
-    <CustomButton title={"QR CODE"} onClick={()=>navigateTo("/dashboard/ImgTest")}/>
+    {/* <CustomButton title={"QR CODE"} onClick={()=>navigateTo("/dashboard/ImgTest")}/> */}
       <div className="flex flex-col p-10">
         <h2 className="text-black">Dashboard</h2>
         <h4 className="mt-2 text-gray-600">
