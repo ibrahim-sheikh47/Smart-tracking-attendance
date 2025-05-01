@@ -7,27 +7,15 @@ import {
   Box,
   IconButton,
   Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
 } from "@mui/material";
 import { ArrowBack as ArrowBackIcon, QrCode } from "@mui/icons-material";
 import { doc, getDoc } from "firebase/firestore";
 import { firestoreDb } from "../../config/firebase.jsx";
 import InputField from "../../ui_components/InputField.jsx";
-import AttendanceReportCard from "../../ui_components/AttendanceReportCard.jsx";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import assets from "../../constants/assets.jsx";
+import AttendanceReportCard from "../../ui_components/AttendanceReportCard.jsx";
+import AttendanceChart from "../../components/AttendanceChart.jsx";
+import QrCodeDialog from "../../ui_components/QrDialog.jsx";
 
 export default function Reports() {
   const location = useLocation();
@@ -89,6 +77,11 @@ export default function Reports() {
     navigate("/manage-staff");
   };
 
+  // New function to handle navigation to attendance history
+  const handleViewHistory = () => {
+    navigate(`/reports/${employeeId}/history`);
+  };
+
   // Get initials for the avatar fallback
   const getInitials = (name) => {
     if (!name) return "";
@@ -130,8 +123,11 @@ export default function Reports() {
       <div className="max-w-[400px] bg-[#F9F9F9] p-4 rounded-2xl">
         <div className="flex items-center justify-between">
           <p>Person info</p>
-          <button onClick={handleOpenQrDialog} className="border-2 text-sm border-black text-black px-4 py-2 rounded-lg font-bold cursor-pointer hover:scale-105">
-            <QrCode/>
+          <button
+            onClick={handleOpenQrDialog}
+            className="border-2 text-sm border-black text-black px-4 py-2 rounded-lg font-bold cursor-pointer hover:scale-105"
+          >
+            <QrCode />
           </button>
         </div>
 
@@ -193,7 +189,10 @@ export default function Reports() {
         <div className=" bg-[#F9F9F9] p-4 rounded-2xl">
           <div className="flex justify-between items-center">
             <p>Attendance Report</p>
-            <button className="border-2 text-sm border-[#3DC296] text-[#3DC296] px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-[#3DC296] hover:text-white">
+            <button
+              className="border-2 text-sm border-[#3DC296] text-[#3DC296] px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-[#3DC296] hover:text-white"
+              onClick={handleViewHistory}
+            >
               View History
             </button>
           </div>
@@ -244,111 +243,16 @@ export default function Reports() {
               />
             </div>
             <Divider sx={{ marginY: 2 }} />
-            <Paper className="p-6 rounded-lg">
-              {/* Summary Stats */}
-              <div className="flex justify-between mb-6">
-                <div className="flex gap-3 items-center">
-                  <div className="w-4 h-4 bg-[#3DC296] rounded-full" />
-                  <p>Presents</p>
-                </div>
-                <div className="flex gap-3 items-center">
-                  <div className="w-4 h-4 bg-[#FEB924] rounded-full" />
-                  <p>Late Arrivals</p>
-                </div>
-                <div className="flex gap-3 items-center">
-                  <div className="w-4 h-4 bg-[#E62E2E] rounded-full" />
-                  <p>Absents</p>
-                </div>
-              </div>
-
-              <Divider className="my-4" />
-
-              {/* Bar Chart */}
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={data}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    barSize={8}
-                  >
-                    <CartesianGrid strokeDasharray="2 2" vertical={false} />
-                    <XAxis dataKey="name" style={{ fontSize: "12px" }} />
-                    <YAxis
-                      domain={[0, 2500]}
-                      ticks={[0, 500, 1000, 1500, 2000, 2500]}
-                      tickFormatter={(value) => `${value / 1000}k`}
-                      style={{ fontSize: "12px" }}
-                    />
-                    <Tooltip
-                      labelStyle={{ color: "black", fontWeight: "bold" }}
-                      formatter={(value, name) => [`${value}`, name]}
-                      labelFormatter={(label) => `Month: ${label}`}
-                    />
-                    <Bar
-                      dataKey="presents"
-                      fill="#3DC296"
-                      radius={[4, 4, 0, 0]}
-                      name="Presents"
-                    />
-                    <Bar
-                      dataKey="lateArrivals"
-                      fill="#FEB924"
-                      radius={[4, 4, 0, 0]}
-                      name="Late Arrivals"
-                    />
-                    <Bar
-                      dataKey="absents"
-                      fill="#E62E2E"
-                      radius={[4, 4, 0, 0]}
-                      name="Absents"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              <Divider className="my-4" />
-            </Paper>
+            <AttendanceChart data={data} />
           </div>
         </div>
       </div>
       {/* QR Code Dialog */}
-<Dialog open={qrDialogOpen} onClose={handleCloseQrDialog}>
-  <DialogTitle>{employee?.name}</DialogTitle>
-  <DialogContent>
-    {employee?.qrCodeUrl ? (
-      <img
-        src={employee.qrCodeUrl}
-        alt={`${employee.name}'s QR Code`}
-        style={{ width: '100%', maxWidth: '300px', height: 'auto' }}
+      <QrCodeDialog
+        open={qrDialogOpen}
+        onClose={handleCloseQrDialog}
+        employee={employee}
       />
-    ) : (
-      <Typography variant="body1" color="textSecondary">
-        No QR code available for this employee.
-      </Typography>
-    )}
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={handleCloseQrDialog} color="primary">
-      Close
-    </Button>
-    {employee?.qrCodeUrl && (
-      <Button
-        onClick={() => {
-          // Create a temporary anchor element to download the QR code
-          const link = document.createElement('a');
-          link.href = employee.qrCodeUrl;
-          link.download = `qr-code-${employee.id}.png`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }}
-        color="primary"
-      >
-        Download
-      </Button>
-    )}
-  </DialogActions>
-</Dialog>
     </div>
   );
 }
@@ -367,6 +271,7 @@ const options = [
   { value: "November", label: "November" },
   { value: "December", label: "December" },
 ];
+
 // Sample data for the chart
 const data = [
   { name: "Jan", presents: 2000, lateArrivals: 400, absents: 300 },
@@ -382,4 +287,3 @@ const data = [
   { name: "Nov", presents: 2350, lateArrivals: 490, absents: 380 },
   { name: "Dec", presents: 2450, lateArrivals: 510, absents: 400 },
 ];
-

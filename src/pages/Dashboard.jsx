@@ -9,7 +9,7 @@ import CustomButton from "../ui_components/CustomButton.jsx";
 
 const Dashboard = () => {
   const [staffList, setStaffList] = useState([]);
-  const staffRef = collection(firestoreDb, "Staff");
+  const staffRef = collection(firestoreDb, "employees");
 
   const [checkIns, setCheckIns] = useState([]);
   const checkInsRef = collection(firestoreDb, "CheckIns");
