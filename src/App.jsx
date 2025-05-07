@@ -17,6 +17,7 @@ import Reports from "./pages/Reports/StaffReport";
 import AttendanceHistory from "./pages/Reports/AttendanceHistory";
 import Payroll from "./pages/Payroll/Payroll";
 import PayrollDetails from "./pages/Payroll/PayrollDetails";
+import SettingsPage from "./pages/Settings/Settings.jsx";
 
 // Placeholder components
 const Settings = () => <div className="p-6">Settings Content</div>;
@@ -52,7 +53,9 @@ function App() {
             <Route path="/dashboard/ImgTest" element={<ImgTest />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/payroll/payroll-detail/:employeeId" element={<PayrollDetails />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="/reports" element={<Reports />} />
+
             <Route
               path="/reports/:employeeId/history"
               element={<AttendanceHistory />}
