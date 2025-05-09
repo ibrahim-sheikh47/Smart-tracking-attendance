@@ -236,6 +236,7 @@ const EmployeeTable = ({
                 return (
                   <TableRow key={employee.uid}>
                     <TableCell>
+                    
                       {employee.firstName} {employee.lastName}
                     </TableCell>
                     <TableCell>{employee.department}</TableCell>

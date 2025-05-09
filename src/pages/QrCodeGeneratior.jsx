@@ -12,6 +12,7 @@ const QRCodeGenerator = () => {
   const [isGenerated, setIsGenerated] = useState(false)
   const [openModal, setOpenModal] = useState(false)
   const [sessionId, setSessionId] = useState("")
+  // eslint-disable-next-line no-unused-vars
   const [expiryTime, setExpiryTime] = useState(null)
   const [countdown, setCountdown] = useState(0)
 
