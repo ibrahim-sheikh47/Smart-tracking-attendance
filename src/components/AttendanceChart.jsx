@@ -1,4 +1,3 @@
-import React from "react";
 import {
   BarChart,
   Bar,
@@ -11,6 +10,17 @@ import {
 import { Paper, Divider } from "@mui/material";
 
 const AttendanceChart = ({ data }) => {
+  // If no data is provided, show a placeholder message
+  if (!data || data.length === 0) {
+    return (
+      <Paper className="p-6 rounded-lg">
+        <div className="flex justify-center items-center h-[300px] text-gray-500">
+          No attendance data available for the selected month
+        </div>
+      </Paper>
+    );
+  }
+
   return (
     <Paper className="p-6 rounded-lg">
       {/* Summary Stats */}
@@ -42,15 +52,15 @@ const AttendanceChart = ({ data }) => {
             <CartesianGrid strokeDasharray="2 2" vertical={false} />
             <XAxis dataKey="name" style={{ fontSize: "12px" }} />
             <YAxis
-              domain={[0, 2500]}
-              ticks={[0, 500, 1000, 1500, 2000, 2500]}
-              tickFormatter={(value) => `${value / 1000}k`}
+              domain={[0, "auto"]}
+              ticks={[0, 5, 10, 15, 20, 25]}
+              tickFormatter={(value) => value}
               style={{ fontSize: "12px" }}
             />
             <Tooltip
               labelStyle={{ color: "black", fontWeight: "bold" }}
               formatter={(value, name) => [`${value}`, name]}
-              labelFormatter={(label) => `Month: ${label}`}
+              labelFormatter={(label) => `Day: ${label}`}
             />
             <Bar
               dataKey="presents"

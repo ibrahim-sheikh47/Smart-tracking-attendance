@@ -52,7 +52,7 @@ function App() {
             <Route path="/manage-staff/AddNewStaff" element={<AddNewStaff />} />
             <Route path="/dashboard/ImgTest" element={<ImgTest />} />
             <Route path="/payroll" element={<Payroll />} />
-            <Route path="/payroll/payroll-detail/:employeeId" element={<PayrollDetails />} />
+            <Route path="/payroll/payroll-detail/:id" element={<PayrollDetails />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/reports" element={<Reports />} />
 

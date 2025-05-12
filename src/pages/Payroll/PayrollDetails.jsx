@@ -1,24 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
   Paper,
   Avatar,
-  Grid,
-  Button,
   IconButton,
-  Divider,
-  Card,
-  CardContent,
+  Collapse,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Collapse,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WorkIcon from "@mui/icons-material/Work";
 import ScheduleIcon from "@mui/icons-material/Schedule";
@@ -26,46 +22,231 @@ import PaidIcon from "@mui/icons-material/Paid";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft } from "@mui/icons-material";
 import CustomButton from "../../ui_components/CustomButton";
+import { useNavigate, useParams } from "react-router-dom";
+import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { firestoreDb } from "../../config/firebase.jsx";
+import { format, differenceInMinutes } from "date-fns";
 
 const PayrollDetail = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams(); // Get employee ID from URL
+  const [employee, setEmployee] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [totalCompExpanded, setTotalCompExpanded] = useState(false);
   const [overtimeExpanded, setOvertimeExpanded] = useState(false);
 
-  // Mock employee data - in a real app, you'd fetch this based on id
-  const employee = {
-    id: id || "123456",
-    name: "Jerry Williams",
-    title: "UX/UI Designer",
-    avatar: "/assets/avatar1.jpg",
-    status: "Active",
-    email: "johndoe@email.com",
-    department: "Design",
-    phone: "+1 234 23456",
-    totalHours: "240 hours",
-    workingHours: "250 hours",
-    overTime: "4 hours",
-    hourlyRate: "D 3.5",
-    salary: "D 945",
-    totalCompensation: "D 875",
-    overtimePay: "D 70",
-    compDetails: {
-      compPerHour: "D 3.5",
-      hoursPerWeek: "40 hours",
-      hoursPerMonth: "240 hours",
-      calculation: "3.5 x 240",
-    },
-    overtimeDetails: {
-      compPerHour: "D 3.5 x 2",
-      hoursPerWeek: "1 hours",
-      hoursPerMonth: "10 hours",
-      calculation: "3.5 x 2 x 10",
-    },
+  useEffect(() => {
+    if (id) {
+      fetchEmployeeData(id);
+    }
+  }, [id]);
+
+  const fetchEmployeeData = async (employeeId) => {
+    try {
+      setLoading(true);
+
+      // Fetch employee basic info
+      const employeeDocRef = doc(firestoreDb, "employees", employeeId);
+      const employeeSnapshot = await getDoc(employeeDocRef);
+
+      if (!employeeSnapshot.exists()) {
+        setError("Employee not found");
+        setLoading(false);
+        return;
+      }
+
+      const employeeData = employeeSnapshot.data();
+
+      // Fetch check-ins for this employee
+      const checkInsRef = collection(firestoreDb, "CheckIns");
+      const checkInsQuery = query(checkInsRef, where("employeeId", "==", employeeId));
+      const checkInsSnapshot = await getDocs(checkInsQuery);
+
+      // Fetch check-outs for this employee
+      const checkOutsRef = collection(firestoreDb, "CheckOuts");
+      const checkOutsQuery = query(checkOutsRef, where("employeeId", "==", employeeId));
+      const checkOutsSnapshot = await getDocs(checkOutsQuery);
+
+      // Process check-ins and check-outs
+      const checkIns = [];
+      checkInsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.checkInTime) {
+          let checkInTime;
+          if (data.checkInTime.toDate) {
+            checkInTime = data.checkInTime.toDate();
+          } else if (data.checkInTime.seconds) {
+            checkInTime = new Date(data.checkInTime.seconds * 1000);
+          } else {
+            checkInTime = new Date(data.checkInTime);
+          }
+
+          checkIns.push({
+            id: doc.id,
+            time: checkInTime,
+            sessionId: data.sessionId,
+            isLate: data.isLate || false,
+          });
+        }
+      });
+
+      const checkOuts = [];
+      checkOutsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.checkOutTime) {
+          let checkOutTime;
+          if (data.checkOutTime.toDate) {
+            checkOutTime = data.checkOutTime.toDate();
+          } else if (data.checkOutTime.seconds) {
+            checkOutTime = new Date(data.checkOutTime.seconds * 1000);
+          } else {
+            checkOutTime = new Date(data.checkOutTime);
+          }
+
+          checkOuts.push({
+            id: doc.id,
+            time: checkOutTime,
+            sessionId: data.sessionId,
+            isEarly: data.isEarly || false,
+          });
+        }
+      });
+
+      // Calculate total working hours and overtime
+      let totalWorkingMinutes = 0;
+      let totalOvertimeMinutes = 0;
+
+      // Match check-ins with check-outs by sessionId
+      checkIns.forEach((checkIn) => {
+        const matchingCheckOut = checkOuts.find((checkOut) => checkOut.sessionId === checkIn.sessionId);
+
+        if (matchingCheckOut) {
+          const workingMinutes = differenceInMinutes(matchingCheckOut.time, checkIn.time);
+
+          if (workingMinutes > 0) {
+            totalWorkingMinutes += workingMinutes;
+
+            // Calculate overtime (assuming 8 hours standard workday)
+            const standardWorkdayMinutes = 8 * 60;
+            if (workingMinutes > standardWorkdayMinutes) {
+              totalOvertimeMinutes += workingMinutes - standardWorkdayMinutes;
+            }
+          }
+        }
+      });
+
+      // Convert minutes to hours and minutes format
+      const totalWorkingHours = Math.floor(totalWorkingMinutes / 60);
+      const remainingWorkingMinutes = totalWorkingMinutes % 60;
+
+      const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60);
+      const remainingOvertimeMinutes = totalOvertimeMinutes % 60;
+
+      // Check if employee is present today
+      const today = format(new Date(), "yyyy-MM-dd");
+      const isTodayPresent = checkIns.some((checkIn) => format(checkIn.time, "yyyy-MM-dd") === today);
+
+      // Calculate compensation
+      const hourlyRate = employeeData.hourlyRate || 0;
+      const overtimeRate = employeeData.overtimeRate || hourlyRate * 1.5;
+      const regularMinutes = totalWorkingMinutes - totalOvertimeMinutes;
+      const regularHours = regularMinutes / 60;
+      const overtimeHours = totalOvertimeMinutes / 60;
+
+      const regularPay = regularHours * hourlyRate;
+      const overtimePay = overtimeHours * overtimeRate;
+      const totalPay = regularPay + overtimePay;
+
+      // Calculate monthly values (assuming 4 weeks in a month)
+      const hoursPerWeek = employeeData.workingHours || 40;
+      const hoursPerMonth = hoursPerWeek * 4;
+
+      // Prepare the employee data object
+      const formattedEmployee = {
+        id: employeeId,
+        name: `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim(),
+        title: employeeData.jobTitle || employeeData.title || "Employee",
+        avatar: employeeData.photoURL || "",
+        status: isTodayPresent ? "Active" : "Inactive",
+        email: employeeData.email || "",
+        department: employeeData.department || "N/A",
+        phone: employeeData.phoneNumber || "N/A",
+        totalHours: `${hoursPerMonth} hours`,
+        workingHours: `${totalWorkingHours} hours ${remainingWorkingMinutes} mins`,
+        overTime: totalOvertimeMinutes > 0 ?
+          `${totalOvertimeHours} hours ${remainingOvertimeMinutes} mins` :
+          "0 hours",
+        hourlyRate: `D ${hourlyRate.toFixed(2)}`,
+        salary: `D ${totalPay.toFixed(2)}`,
+        totalCompensation: `D ${regularPay.toFixed(2)}`,
+        overtimePay: `D ${overtimePay.toFixed(2)}`,
+        compDetails: {
+          compPerHour: `D ${hourlyRate.toFixed(2)}`,
+          hoursPerWeek: `${hoursPerWeek} hours`,
+          hoursPerMonth: `${hoursPerMonth} hours`,
+          calculation: `${hourlyRate.toFixed(2)} x ${regularHours.toFixed(2)}`,
+        },
+        overtimeDetails: {
+          compPerHour: `D ${hourlyRate.toFixed(2)} x 1.5`,
+          hoursPerWeek: `${(totalOvertimeHours / 4).toFixed(1)} hours`,
+          hoursPerMonth: `${totalOvertimeHours.toFixed(1)} hours`,
+          calculation: `${hourlyRate.toFixed(2)} x 1.5 x ${totalOvertimeHours.toFixed(2)}`,
+        },
+      };
+
+      setEmployee(formattedEmployee);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching employee data:", err);
+      setError("Failed to load employee data. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Get initials for avatar fallback
+  const getInitials = (name) => {
+    if (!name) return "";
+    const parts = name.split(" ");
+    return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || ""}`.toUpperCase();
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ p: 3, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "70vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">{error}</Alert>
+        <Box sx={{ mt: 2 }}>
+          <Button variant="outlined" startIcon={<ChevronLeft />} onClick={() => navigate("/payroll")}>
+            Back to Payroll
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning">No employee data found.</Alert>
+        <Box sx={{ mt: 2 }}>
+          <IconButton onClick={() => navigate("/payroll")}>
+            <ChevronLeft /> Back to Payroll
+          </IconButton>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
@@ -79,16 +260,13 @@ const PayrollDetail = () => {
             mb: 3,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "start" }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
             <IconButton onClick={() => navigate("/payroll")} sx={{ mr: 1 }}>
               <ChevronLeft />
             </IconButton>
             <Box>
               <Typography variant="h6" fontWeight="bold">
                 {employee.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                EMP: #{employee.id}
               </Typography>
             </Box>
           </Box>
@@ -111,16 +289,32 @@ const PayrollDetail = () => {
             borderRadius: 3,
           }}
         >
-          <Avatar
-            src={employee.avatar}
-            sx={{
-              width: 120,
-              height: 120,
-              border: "3px solid #f5f5f5",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              borderRadius: 3,
-            }}
-          />
+          {employee.avatar ? (
+            <Avatar
+              src={employee.avatar}
+              sx={{
+                width: 120,
+                height: 120,
+                border: "3px solid #f5f5f5",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                borderRadius: 3,
+              }}
+            />
+          ) : (
+            <Avatar
+              sx={{
+                width: 120,
+                height: 120,
+                border: "3px solid #f5f5f5",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                borderRadius: 3,
+                bgcolor: "#3DC296",
+                fontSize: 48,
+              }}
+            >
+              {getInitials(employee.name)}
+            </Avatar>
+          )}
           <Box>
             <Typography variant="h5" fontWeight="bold">
               {employee.name}
@@ -129,8 +323,7 @@ const PayrollDetail = () => {
               {employee.title}
             </Typography>
 
-            <div className="flex justify-between gap-20">
-
+            <div className="flex flex-wrap gap-6 md:gap-20">
               <div className="">
                 <p className="text-sm text-gray-500">Status</p>
                 <p className="font-medium">{employee.status}</p>
@@ -156,7 +349,7 @@ const PayrollDetail = () => {
           <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
             <div className="flex items-center mb-2">
               <AccessTimeIcon className="text-gray-600 mr-2" fontSize="small" />
-              <p className="text-sm text-gray-500">Total Hours</p>
+              <p className="text-sm text-gray-500">Total Hours Per Month</p>
             </div>
             <p className="text-lg font-bold">{employee.totalHours}</p>
           </div>
@@ -203,7 +396,7 @@ const PayrollDetail = () => {
           sx={{
             border: "2px solid #3DC296",
             borderRadius: 2,
-            background:"#3DC29610",
+            background: "#3DC29610",
             p: 2,
             mb: 3,
             display: "flex",

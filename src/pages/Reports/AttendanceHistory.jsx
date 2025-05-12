@@ -118,10 +118,10 @@ export default function AttendanceHistory() {
     setPage(0);
   };
 
-//   const handleExport = () => {
-//     // Implement export functionality here
-//     alert("Export functionality will be implemented here");
-//   };
+  //   const handleExport = () => {
+  //     // Implement export functionality here
+  //     alert("Export functionality will be implemented here");
+  //   };
 
   // Filter data based on search term
   const filteredData = attendanceData.filter((row) => {
@@ -178,7 +178,9 @@ export default function AttendanceHistory() {
   return (
     <>
       {/* Header and Back Button */}
-      <Box sx={{ display: "flex", alignItems: "center", marginY: 5 , marginX:2 }}>
+      <Box
+        sx={{ display: "flex", alignItems: "center", marginY: 5, marginX: 2 }}
+      >
         <IconButton onClick={handleBack} sx={{ marginRight: 1 }}>
           <ChevronLeft />
         </IconButton>
@@ -193,7 +195,7 @@ export default function AttendanceHistory() {
           sx={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems:"center",
+            alignItems: "center",
             marginBottom: 2,
           }}
         >
@@ -216,8 +218,8 @@ export default function AttendanceHistory() {
               }}
             />
             <CustomButton
-                title={"Export"}
-                style={"text-white w-[110px] h-[40px]"}
+              title={"Export"}
+              style={"text-white w-[110px] h-[40px]"}
             />
           </Box>
         </Box>
@@ -232,7 +234,6 @@ export default function AttendanceHistory() {
                 <TableCell>Check-out</TableCell>
                 <TableCell>Working Hours</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell align="right">Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -296,22 +297,6 @@ export default function AttendanceHistory() {
                           }}
                         />
                         {row.status}
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                          gap: 1,
-                        }}
-                      >
-                        <IconButton size="small">
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small">
-                          <EditIcon fontSize="small" />
-                        </IconButton>
                       </Box>
                     </TableCell>
                   </TableRow>

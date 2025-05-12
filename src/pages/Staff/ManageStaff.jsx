@@ -3,12 +3,17 @@ import { DataGrid } from "@mui/x-data-grid";
 import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import CustomButton from "../../ui_components/CustomButton.jsx";
 import { useNavigate } from "react-router-dom";
 import Avatar from "@mui/material/Avatar";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Button from "@mui/material/Button";
 
 // Import Firebase
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
@@ -21,6 +26,12 @@ export default function ManageStaff() {
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
+  const [openDialog, setOpenDialog] = React.useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = React.useState(null);
+  const confirmDelete = (firestoreId) => {
+    setSelectedEmployeeId(firestoreId);
+    setOpenDialog(true);
+  };
 
   // Fetch employees from Firebase
   const fetchEmployees = async () => {
@@ -63,12 +74,15 @@ export default function ManageStaff() {
   }, []);
 
   // Delete employee
-  const handleDelete = async (firestoreId) => {
+  const handleConfirmDelete = async () => {
     try {
-      await deleteDoc(doc(firestoreDb, "employees", firestoreId));
+      await deleteDoc(doc(firestoreDb, "employees", selectedEmployeeId));
       fetchEmployees();
     } catch (error) {
       console.error("Error deleting employee: ", error);
+    } finally {
+      setOpenDialog(false);
+      setSelectedEmployeeId(null);
     }
   };
 
@@ -80,7 +94,7 @@ export default function ManageStaff() {
   };
 
   const columns = [
-    { field: "id", headerName: "ID", width: 20 },
+    { field: "id", headerName: "ID", width: 60 },
     {
       field: "name",
       headerName: "Name",
@@ -120,7 +134,7 @@ export default function ManageStaff() {
         <div>
           <CustomButton
             style={"mt-5 w-[120px] text-white text-xs hover:bg-gray-700"}
-            title={"View Report"}
+            title={"View Details"}
             icon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
             onClick={() => navigation(`/reports?id=${params.row.firestoreId}`)}
           />
@@ -134,11 +148,8 @@ export default function ManageStaff() {
       sortable: false,
       renderCell: (params) => (
         <div style={{ flexDirection: "row", alignItems: "center" }}>
-          <IconButton onClick={() => handleDelete(params.row.firestoreId)}>
+          <IconButton onClick={() => confirmDelete(params.row.firestoreId)}>
             <DeleteIcon />
-          </IconButton>
-          <IconButton>
-            <EditIcon />
           </IconButton>
         </div>
       ),
@@ -160,7 +171,7 @@ export default function ManageStaff() {
         />
       </div>
 
-      <Paper sx={{ height: 500, width: "100%", marginTop: 5 }}>
+      <Paper sx={{ height: 500, width: "100%", marginTop: 5, paddingLeft: 2 }}>
         <div className="flex justify-between items-center p-5 border-b border-[#dadada]">
           <h1 className="font-bold">Employees</h1>
           <button
@@ -178,12 +189,28 @@ export default function ManageStaff() {
           columns={columns}
           initialState={{ pagination: { paginationModel } }}
           pageSizeOptions={[5, 10, 25]}
-          checkboxSelection
           sx={{ border: 0 }}
           rowHeight={80}
           loading={loading}
         />
       </Paper>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this employee? This action cannot be
+            undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} color="error">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

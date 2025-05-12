@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+"use client"
+
+import { useState, useEffect } from "react"
 import {
   Box,
   Typography,
@@ -13,116 +15,223 @@ import {
   IconButton,
   InputAdornment,
   TextField,
-  Button,
   Avatar,
   Pagination,
-  Stack,
   Chip,
   Select,
   MenuItem,
   FormControl,
-} from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import CustomButton from "../../ui_components/CustomButton";
-import { useNavigate } from "react-router-dom";
+  CircularProgress,
+  Alert,
+} from "@mui/material"
+import SearchIcon from "@mui/icons-material/Search"
+import DeleteIcon from "@mui/icons-material/Delete"
+import EditIcon from "@mui/icons-material/Edit"
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
+import CustomButton from "../../ui_components/CustomButton"
+import { useNavigate } from "react-router-dom"
+import { collection, getDocs, query, where } from "firebase/firestore"
+import { firestoreDb } from "../../config/firebase.jsx"
+import { format, differenceInMinutes } from "date-fns"
 
 const Payroll = () => {
+  const navigate = useNavigate()
+  const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [employees, setEmployees] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [selected, setSelected] = useState([])
+  // eslint-disable-next-line no-unused-vars
+  const [selectAll, setSelectAll] = useState(false)
 
-  const navigate = useNavigate();
-  const [page, setPage] = useState(1);
-  const [rowsPerPage] = useState(10);
-  const [searchTerm, setSearchTerm] = useState("");
+  useEffect(() => {
+    fetchEmployees()
+  }, [])
 
-  // Mock data for employees
-  const employees = [
-    {
-      id: 1,
-      name: "Stella Jason",
-      comp: "D 3.5",
-      hours: "40 hours",
-      overtime: "1 hour 20 mins",
-      status: "Present",
-      avatar: "/assets/avatar1.jpg",
-    },
-    {
-      id: 2,
-      name: "Hannah Baker",
-      comp: "D 3.5",
-      hours: "40 hours",
-      overtime: "1 hour 20 mins",
-      status: "Present",
-      avatar: "/assets/avatar2.jpg",
-    },
-    {
-      id: 3,
-      name: "Harper John",
-      comp: "D 3.5",
-      hours: "40 hours",
-      overtime: "1 hour 20 mins",
-      status: "Present",
-      avatar: "/assets/avatar3.jpg",
-    },
-    {
-      id: 4,
-      name: "Jessica Willson",
-      comp: "D 3.5",
-      hours: "40 hours",
-      overtime: "1 hour 20 mins",
-      status: "Present",
-      avatar: "/assets/avatar4.jpg",
-    },
-    {
-      id: 5,
-      name: "Harlin Watson",
-      comp: "D 3.5",
-      hours: "40 hours",
-      overtime: "1 hour 20 mins",
-      status: "Present",
-      avatar: "/assets/avatar5.jpg",
-    },
-    {
-      id: 6,
-      name: "Jessica Willson",
-      comp: "D 3.5",
-      hours: "40 hours",
-      overtime: "1 hour 20 mins",
-      status: "Present",
-      avatar: "/assets/avatar4.jpg",
-    },
-    {
-      id: 7,
-      name: "Harper John",
-      comp: "D 3.5",
-      hours: "40 hours",
-      overtime: "1 hour 20 mins",
-      status: "Present",
-      avatar: "/assets/avatar3.jpg",
-    },
-    {
-      id: 8,
-      name: "Stella Jason",
-      comp: "D 3.5",
-      hours: "40 hours",
-      overtime: "1 hour 20 mins",
-      status: "Present",
-      avatar: "/assets/avatar1.jpg",
-    },
-  ];
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true)
+      const employeesRef = collection(firestoreDb, "employees")
+      const employeesSnapshot = await getDocs(employeesRef)
+
+      const employeePromises = employeesSnapshot.docs.map(async (doc) => {
+        const employeeData = doc.data()
+        const employeeId = doc.id
+
+        // Fetch check-ins for this employee
+        const checkInsRef = collection(firestoreDb, "CheckIns")
+        const checkInsQuery = query(checkInsRef, where("employeeId", "==", employeeId))
+        const checkInsSnapshot = await getDocs(checkInsQuery)
+
+        // Fetch check-outs for this employee
+        const checkOutsRef = collection(firestoreDb, "CheckOuts")
+        const checkOutsQuery = query(checkOutsRef, where("employeeId", "==", employeeId))
+        const checkOutsSnapshot = await getDocs(checkOutsQuery)
+
+        // Process check-ins and check-outs
+        const checkIns = []
+        checkInsSnapshot.forEach((doc) => {
+          const data = doc.data()
+          if (data.checkInTime) {
+            let checkInTime
+            if (data.checkInTime.toDate) {
+              checkInTime = data.checkInTime.toDate()
+            } else if (data.checkInTime.seconds) {
+              checkInTime = new Date(data.checkInTime.seconds * 1000)
+            } else {
+              checkInTime = new Date(data.checkInTime)
+            }
+
+            checkIns.push({
+              id: doc.id,
+              time: checkInTime,
+              sessionId: data.sessionId,
+              isLate: data.isLate || false,
+            })
+          }
+        })
+
+        const checkOuts = []
+        checkOutsSnapshot.forEach((doc) => {
+          const data = doc.data()
+          if (data.checkOutTime) {
+            let checkOutTime
+            if (data.checkOutTime.toDate) {
+              checkOutTime = data.checkOutTime.toDate()
+            } else if (data.checkOutTime.seconds) {
+              checkOutTime = new Date(data.checkOutTime.seconds * 1000)
+            } else {
+              checkOutTime = new Date(data.checkOutTime)
+            }
+
+            checkOuts.push({
+              id: doc.id,
+              time: checkOutTime,
+              sessionId: data.sessionId,
+              isEarly: data.isEarly || false,
+            })
+          }
+        })
+
+        // Calculate total working hours and overtime
+        let totalWorkingMinutes = 0
+        let totalOvertimeMinutes = 0
+
+        // Match check-ins with check-outs by sessionId
+        checkIns.forEach((checkIn) => {
+          const matchingCheckOut = checkOuts.find((checkOut) => checkOut.sessionId === checkIn.sessionId)
+
+          if (matchingCheckOut) {
+            const workingMinutes = differenceInMinutes(matchingCheckOut.time, checkIn.time)
+
+            if (workingMinutes > 0) {
+              totalWorkingMinutes += workingMinutes
+
+              // Calculate overtime (assuming 8 hours standard workday)
+              const standardWorkdayMinutes = 8 * 60
+              if (workingMinutes > standardWorkdayMinutes) {
+                totalOvertimeMinutes += workingMinutes - standardWorkdayMinutes
+              }
+            }
+          }
+        })
+
+        // Convert minutes to hours and minutes format
+        const totalWorkingHours = Math.floor(totalWorkingMinutes / 60)
+        const remainingWorkingMinutes = totalWorkingMinutes % 60
+
+        const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60)
+        const remainingOvertimeMinutes = totalOvertimeMinutes % 60
+
+        // Check if employee is present today
+        const today = format(new Date(), "yyyy-MM-dd")
+        const isTodayPresent = checkIns.some((checkIn) => format(checkIn.time, "yyyy-MM-dd") === today)
+
+        // Calculate compensation
+        const hourlyRate = employeeData.hourlyRate || 0
+        const overtimeRate = employeeData.overtimeRate || hourlyRate * 1.5
+        const regularPay = (totalWorkingHours - totalOvertimeHours) * hourlyRate
+        const overtimePay = totalOvertimeHours * overtimeRate
+        const totalPay = regularPay + overtimePay
+
+        return {
+          id: employeeId,
+          name: `${employeeData.firstName} ${employeeData.lastName}`,
+          comp: `D${hourlyRate.toFixed(2)}`,
+          hours: `${employeeData.workingHours || 40} hours`,
+          overtime:
+            totalOvertimeMinutes > 0
+              ? `${totalOvertimeHours} hour${totalOvertimeHours !== 1 ? "s" : ""} ${remainingOvertimeMinutes} min${remainingOvertimeMinutes !== 1 ? "s" : ""}`
+              : "None",
+          status: isTodayPresent ? "Present" : "Absent",
+          avatar: employeeData.photoURL || "",
+          department: employeeData.department || "N/A",
+          totalWorkingTime: `${totalWorkingHours} hour${totalWorkingHours !== 1 ? "s" : ""} ${remainingWorkingMinutes} min${remainingWorkingMinutes !== 1 ? "s" : ""}`,
+          totalPay: `D${totalPay.toFixed(2)}`,
+          email: employeeData.email,
+          phoneNumber: employeeData.phoneNumber,
+        }
+      })
+
+      const employeeList = await Promise.all(employeePromises)
+      setEmployees(employeeList)
+      setError(null)
+    } catch (err) {
+      console.error("Error fetching employee data:", err)
+      setError("Failed to load employee data. Please try again later.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(Number.parseInt(event.target.value, 10))
+    setPage(1)
+  }
 
   const handleSearch = (event) => {
-    setSearchTerm(event.target.value);
-  };
+    setSearchTerm(event.target.value)
+  }
 
-  const filteredEmployees = employees.filter((employee) =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSelectOne = (event, id) => {
+    const selectedIndex = selected.indexOf(id)
+    let newSelected = []
+
+    if (selectedIndex === -1) {
+      newSelected = [...selected, id]
+    } else {
+      newSelected = selected.filter((itemId) => itemId !== id)
+    }
+
+    setSelected(newSelected)
+    setSelectAll(newSelected.length === filteredEmployees.length)
+  }
+
+  const isSelected = (id) => selected.indexOf(id) !== -1
+
+  const filteredEmployees = employees.filter(
+    (employee) =>
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.department?.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
+  // Calculate pagination
+  const indexOfLastEmployee = page * rowsPerPage
+  const indexOfFirstEmployee = indexOfLastEmployee - rowsPerPage
+  const currentEmployees = filteredEmployees.slice(indexOfFirstEmployee, indexOfLastEmployee)
+
+  // Get initials for avatar fallback
+  const getInitials = (name) => {
+    if (!name) return ""
+    const parts = name.split(" ")
+    return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || ""}`.toUpperCase()
+  }
 
   return (
     <Box sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
@@ -143,11 +252,14 @@ const Payroll = () => {
               Manage all payrolls here.
             </Typography>
           </Box>
-          <CustomButton
-                title={"Export All"}
-                style={"text-white w-[110px] h-[40px]"}
-            />
+          <CustomButton title={"Export All"} style={"text-white w-[110px] h-[40px]"} />
         </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
         <Box
           sx={{
@@ -158,13 +270,14 @@ const Payroll = () => {
           }}
         >
           <Typography variant="subtitle1" fontWeight="bold">
-            Employees Reports
+            Employees Payroll Reports
           </Typography>
 
           <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
               placeholder="Search..."
               size="small"
+              value={searchTerm}
               onChange={handleSearch}
               InputProps={{
                 startAdornment: (
@@ -178,9 +291,9 @@ const Payroll = () => {
 
             <FormControl size="small" sx={{ minWidth: 100 }}>
               <Select
-                displayEmpty
-                value="10"
-                renderValue={() => "Show: 10"}
+                value={rowsPerPage.toString()}
+                onChange={(e) => handleChangeRowsPerPage(e)}
+                renderValue={(value) => `Show: ${value}`}
                 IconComponent={KeyboardArrowDownIcon}
               >
                 <MenuItem value="10">10</MenuItem>
@@ -192,105 +305,132 @@ const Payroll = () => {
           </Box>
         </Box>
 
-        <TableContainer component={Paper} elevation={0} sx={{ mb: 2 }}>
-          <Table>
-            <TableHead sx={{ bgcolor: "#f9f9f9" }}>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox />
-                </TableCell>
-                <TableCell>ID</TableCell>
-                <TableCell>Employee Name</TableCell>
-                <TableCell>Comp/Hour</TableCell>
-                <TableCell>Hours/wk</TableCell>
-                <TableCell>Overtime</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredEmployees.map((employee) => (
-                <TableRow key={employee.id} hover>
-                  <TableCell padding="checkbox">
-                    <Checkbox />
-                  </TableCell>
-                  <TableCell>{employee.id}</TableCell>
-                  <TableCell>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1.5,
-                        cursor: 'pointer',
-                        '&:hover': {
-                          color: '#009688'
-                        }
-                      }}
-                      onClick={() => navigate(`/payroll/payroll-detail/${employee.id}`)}
-                    >
-                      <Avatar src={employee.avatar} sx={{ width: 36, height: 36 }} />
-                      {employee.name}
-                    </Box>
-                  </TableCell>
-                  <TableCell>{employee.comp}</TableCell>
-                  <TableCell>{employee.hours}</TableCell>
-                  <TableCell>{employee.overtime}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={employee.status}
-                      size="small"
-                      sx={{
-                        bgcolor: "white",
-                        paddingX:1,
-                        borderRadius:1,
-                        "&::before": {
-                          content: '""',
-                          display: "inline-block",
-                          width: "8px",
-                          height: "8px",
-                          borderRadius: "50%",
-                          backgroundColor: "#3DC296",
-                          marginRight: "4px",
-                        },
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton size="small">
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small">
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            <TableContainer component={Paper} elevation={0} sx={{ mb: 2 }}>
+              <Table>
+                <TableHead sx={{ bgcolor: "#f9f9f9" }}>
+                  <TableRow>
+                    <TableCell padding="checkbox">
+                    </TableCell>
+                    <TableCell>ID</TableCell>
+                    <TableCell>Employee Name</TableCell>
+                    <TableCell>Comp/Hour</TableCell>
+                    <TableCell>Hours/wk</TableCell>
+                    <TableCell>Overtime</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {currentEmployees.map((employee, index) => {
+                    const isItemSelected = isSelected(employee.id)
 
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            Showing 1-{Math.min(employees.length, rowsPerPage)} from{" "}
-            {employees.length}
-          </Typography>
-          <Pagination
-            count={Math.ceil(employees.length / rowsPerPage)}
-            page={page}
-            onChange={handleChangePage}
-            color="primary"
-            shape="rounded"
-          />
-        </Box>
+                    return (
+                      <TableRow
+                        key={employee.id}
+                        hover
+                        selected={isItemSelected}
+                        onClick={(event) => handleSelectOne(event, employee.id)}
+                      >
+                        <TableCell padding="checkbox">
+                        </TableCell>
+                        <TableCell>{indexOfFirstEmployee + index + 1}</TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.5,
+                              cursor: "pointer",
+                              "&:hover": {
+                                color: "#009688",
+                              },
+                            }}
+                            onClick={() => navigate(`/payroll/payroll-detail/${employee.id}`)}
+                          >
+                            {employee.avatar ? (
+                              <Avatar src={employee.avatar} sx={{ width: 36, height: 36 }} />
+                            ) : (
+                              <Avatar sx={{ width: 36, height: 36, bgcolor: "#3DC296" }}>
+                                {getInitials(employee.name)}
+                              </Avatar>
+                            )}
+                            {employee.name}
+                          </Box>
+                        </TableCell>
+                        <TableCell>{employee.comp}</TableCell>
+                        <TableCell>{employee.hours}</TableCell>
+                        <TableCell>{employee.overtime}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={employee.status}
+                            size="small"
+                            sx={{
+                              bgcolor: "white",
+                              paddingX: 1,
+                              borderRadius: 1,
+                              "&::before": {
+                                content: '""',
+                                display: "inline-block",
+                                width: "8px",
+                                height: "8px",
+                                borderRadius: "50%",
+                                backgroundColor: employee.status === "Present" ? "#3DC296" : "#E74C3C",
+                                marginRight: "4px",
+                              },
+                            }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {currentEmployees.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                        {filteredEmployees.length === 0 ? (
+                          searchTerm ? (
+                            <Typography>No employees found matching "{searchTerm}"</Typography>
+                          ) : (
+                            <Typography>No employees found</Typography>
+                          )
+                        ) : (
+                          <Typography>No employees on this page</Typography>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Showing {indexOfFirstEmployee + 1}-{Math.min(indexOfLastEmployee, filteredEmployees.length)} from{" "}
+                {filteredEmployees.length}
+              </Typography>
+              <Pagination
+                count={Math.ceil(filteredEmployees.length / rowsPerPage)}
+                page={page}
+                onChange={handleChangePage}
+                color="primary"
+                shape="rounded"
+              />
+            </Box>
+          </>
+        )}
       </Paper>
     </Box>
-  );
-};
+  )
+}
 
-export default Payroll;
+export default Payroll
