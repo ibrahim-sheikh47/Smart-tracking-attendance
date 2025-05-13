@@ -13,12 +13,14 @@ import assets from "../constants/assets";
 import CustomButton from "../ui_components/CustomButton";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 
-const Sidebar = () => {
+const Sidebar = ({ userRole }) => {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const menuItems = [
+  // Base menu items
+  const baseMenuItems = [
     { text: "Dashboard", icon: assets.sidebarIcon1, path: "/dashboard" },
     { text: "Manage Staff", icon: assets.sidebarIcon2, path: "/manage-staff" },
     { text: "Payroll", icon: assets.sidebarIcon3, path: "/payroll" },
@@ -26,16 +28,31 @@ const Sidebar = () => {
     { text: "Settings", icon: assets.sidebarIcon5, path: "/settings" },
   ];
 
+  // Super admin specific menu item
+
+  // Determine which menu items to show based on user role
+  // Determine which menu items to show based on user role
+  const menuItems =
+    userRole === "superadmin"
+      ? [
+          {
+            text: "Admin Management",
+            icon: <AdminPanelSettingsIcon />,
+            path: "/admin-management",
+          },
+        ]
+      : baseMenuItems;
+
   const handleSignout = async () => {
     try {
       await signOut(auth);
       console.log("User signed out successfully");
-      // Optionally, navigate to login page or home
     } catch (error) {
       console.error("Error signing out:", error);
       alert(error.message);
     }
   };
+
   return (
     <Drawer
       variant="permanent"
@@ -50,13 +67,20 @@ const Sidebar = () => {
         },
       }}
     >
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 mb-4">
         <Typography variant="h6" className="text-gray-800 font-medium">
           K.M.C Smart Tracking
         </Typography>
         <Typography variant="body2" className="text-gray-500">
           Home of Computer Solutions
         </Typography>
+        {userRole && (
+          <div className="mt-2 text-xs">
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+              {userRole === "superadmin" ? "Super Admin" : "Admin"}
+            </span>
+          </div>
+        )}
       </div>
 
       <List>
@@ -66,7 +90,7 @@ const Sidebar = () => {
             key={item.text}
             component={Link}
             to={item.path}
-            className={`mt-5
+            className={`mt-3
               ${
                 currentPath.startsWith(item.path)
                   ? "bg-[#3DC2960D] text-[#3DC296] border border-[#3DC2961A] rounded-lg"
@@ -80,16 +104,27 @@ const Sidebar = () => {
                   : "text-[#2C3E50] -mr-4"
               }
             >
-              <img
-                src={item.icon}
-                alt=""
-                style={{
-                  filter: currentPath.startsWith(item.path)
-                    ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
-                    : "none",
-                }}
-              />
+              {typeof item.icon === "string" ? (
+                <img
+                  src={item.icon}
+                  alt=""
+                  style={{
+                    filter: currentPath.startsWith(item.path)
+                      ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
+                      : "none",
+                  }}
+                />
+              ) : (
+                React.cloneElement(item.icon, {
+                  sx: {
+                    filter: currentPath.startsWith(item.path)
+                      ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
+                      : "none",
+                  },
+                })
+              )}
             </ListItemIcon>
+
             <ListItemText primary={item.text} />
           </ListItem>
         ))}

@@ -65,8 +65,11 @@ const Navbar = () => {
             Jerry Williams
           </Typography>
           <ArrowDownIcon />
+          
         </div>
+
       </Toolbar>
+
     </AppBar>
   );
 };
