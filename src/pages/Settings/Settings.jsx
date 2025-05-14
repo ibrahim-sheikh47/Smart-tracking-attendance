@@ -7,6 +7,7 @@ export default function SettingsPage() {
     const [systemName, setSystemName] = useState("Tracking System");
     const [adminUsername, setAdminUsername] = useState("admin@admin.com");
     const [adminPassword, setAdminPassword] = useState("admin124@");
+    // eslint-disable-next-line no-unused-vars
     const [logoUploaded, setLogoUploaded] = useState(true);
 
     return (
@@ -141,7 +142,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Footer with company info */}
-                <div className="mt-32 flex">
+                {/* <div className="mt-32 flex">
                     <div className="mr-4">
                         <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
                             <div className="bg-gray-800 h-full w-full flex items-center justify-center relative">
@@ -187,7 +188,7 @@ export default function SettingsPage() {
                             <div className="text-gray-500 ">Serekunda Central Mosque Road No1 Bundung Highway</div>
                         </div>
                     </div>
-                </div>
+                </div> */}
             </div>
         </div>
     );

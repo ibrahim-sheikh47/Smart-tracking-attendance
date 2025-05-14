@@ -30,9 +30,10 @@ import EditIcon from "@mui/icons-material/Edit"
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
 import CustomButton from "../../ui_components/CustomButton"
 import { useNavigate } from "react-router-dom"
-import { collection, getDocs, query, where } from "firebase/firestore"
+import { collection, getDocs, query, where, getDoc, doc } from "firebase/firestore"
 import { firestoreDb } from "../../config/firebase.jsx"
 import { format, differenceInMinutes } from "date-fns"
+import { getAuth } from "firebase/auth"
 
 const Payroll = () => {
   const navigate = useNavigate()
@@ -45,16 +46,51 @@ const Payroll = () => {
   const [selected, setSelected] = useState([])
   // eslint-disable-next-line no-unused-vars
   const [selectAll, setSelectAll] = useState(false)
+  const [currentAdmin, setCurrentAdmin] = useState(null)
 
+  // Get the current admin user
   useEffect(() => {
-    fetchEmployees()
+    const fetchCurrentAdmin = async () => {
+      const auth = getAuth()
+      const user = auth.currentUser
+
+      if (user) {
+        try {
+          // Get the admin document
+          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid))
+          if (adminDoc.exists()) {
+            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() })
+          } else {
+            console.error("Admin document not found")
+            setError("Admin account not found. Please contact support.")
+          }
+        } catch (error) {
+          console.error("Error fetching admin data:", error)
+          setError("Failed to load admin data. Please try again.")
+        }
+      } else {
+        setError("You must be logged in as an admin to view this page.")
+      }
+    }
+
+    fetchCurrentAdmin()
   }, [])
+
+  // Fetch employees when admin data is available
+  useEffect(() => {
+    if (currentAdmin) {
+      fetchEmployees()
+    }
+  }, [currentAdmin])
 
   const fetchEmployees = async () => {
     try {
+      if (!currentAdmin) return
+
       setLoading(true)
-      const employeesRef = collection(firestoreDb, "employees")
-      const employeesSnapshot = await getDocs(employeesRef)
+      // Get employees from the admin's subcollection
+      const employeesCollection = collection(firestoreDb, "admins", currentAdmin.id, "employees")
+      const employeesSnapshot = await getDocs(employeesCollection)
 
       const employeePromises = employeesSnapshot.docs.map(async (doc) => {
         const employeeData = doc.data()
@@ -163,15 +199,20 @@ const Payroll = () => {
           hours: `${employeeData.workingHours || 40} hours`,
           overtime:
             totalOvertimeMinutes > 0
-              ? `${totalOvertimeHours} hour${totalOvertimeHours !== 1 ? "s" : ""} ${remainingOvertimeMinutes} min${remainingOvertimeMinutes !== 1 ? "s" : ""}`
+              ? `${totalOvertimeHours} hour${totalOvertimeHours !== 1 ? "s" : ""} ${remainingOvertimeMinutes} min${
+                  remainingOvertimeMinutes !== 1 ? "s" : ""
+                }`
               : "None",
           status: isTodayPresent ? "Present" : "Absent",
           avatar: employeeData.photoURL || "",
           department: employeeData.department || "N/A",
-          totalWorkingTime: `${totalWorkingHours} hour${totalWorkingHours !== 1 ? "s" : ""} ${remainingWorkingMinutes} min${remainingWorkingMinutes !== 1 ? "s" : ""}`,
+          totalWorkingTime: `${totalWorkingHours} hour${totalWorkingHours !== 1 ? "s" : ""} ${remainingWorkingMinutes} min${
+            remainingWorkingMinutes !== 1 ? "s" : ""
+          }`,
           totalPay: `D${totalPay.toFixed(2)}`,
           email: employeeData.email,
           phoneNumber: employeeData.phoneNumber,
+          adminId: currentAdmin.id, // Store the admin ID
         }
       })
 
@@ -315,8 +356,7 @@ const Payroll = () => {
               <Table>
                 <TableHead sx={{ bgcolor: "#f9f9f9" }}>
                   <TableRow>
-                    <TableCell padding="checkbox">
-                    </TableCell>
+                    <TableCell padding="checkbox"></TableCell>
                     <TableCell>ID</TableCell>
                     <TableCell>Employee Name</TableCell>
                     <TableCell>Comp/Hour</TableCell>
@@ -336,8 +376,7 @@ const Payroll = () => {
                         selected={isItemSelected}
                         onClick={(event) => handleSelectOne(event, employee.id)}
                       >
-                        <TableCell padding="checkbox">
-                        </TableCell>
+                        <TableCell padding="checkbox"></TableCell>
                         <TableCell>{indexOfFirstEmployee + index + 1}</TableCell>
                         <TableCell>
                           <Box
@@ -350,7 +389,7 @@ const Payroll = () => {
                                 color: "#009688",
                               },
                             }}
-                            onClick={() => navigate(`/payroll/payroll-detail/${employee.id}`)}
+                            onClick={() => navigate(`/payroll/payroll-detail/${employee.id}?adminId=${employee.adminId}`)}
                           >
                             {employee.avatar ? (
                               <Avatar src={employee.avatar} sx={{ width: 36, height: 36 }} />

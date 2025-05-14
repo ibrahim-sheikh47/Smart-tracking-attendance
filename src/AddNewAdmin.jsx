@@ -31,7 +31,6 @@ const validationSchema = yup.object().shape({
     .string()
     .oneOf([yup.ref("password"), null], "Passwords must match")
     .required("Confirm password is required"),
-  department: yup.string().required("Department is required"),
   role: yup.string().required("Role is required"),
   phoneNumber: yup
     .string()
@@ -58,25 +57,13 @@ const AddNewAdmin = () => {
       firstName: "",
       lastName: "",
       email: "",
-      password: "",
-      confirmPassword: "",
-      department: "",
+      password: "12345678",
+      confirmPassword: "12345678",
       role: "admin", // Default role
       phoneNumber: "",
     },
   });
 
-  // Department options
-  const departmentOptions = [
-    { value: "hr", label: "HR" },
-    { value: "it", label: "IT" },
-    { value: "management", label: "Management" },
-    { value: "support", label: "Support" },
-    { value: "marketing", label: "Marketing" },
-    { value: "finance", label: "Finance" },
-    { value: "accounts", label: "Accounts" },
-    { value: "sales", label: "Sales" },
-  ];
 
   // Role options
   const roleOptions = [
@@ -96,7 +83,6 @@ const AddNewAdmin = () => {
         lastName: data.lastName,
         email: data.email,
         password: data.password,
-        department: data.department,
         phoneNumber: data.phoneNumber,
         isSuper: data.role === "superadmin",
       };
@@ -222,17 +208,6 @@ const AddNewAdmin = () => {
         <div className="flex gap-2">
           <div className="flex-1">
             <InputField
-              label="Department"
-              dropdown={true}
-              register={register}
-              name="department"
-              error={errors.department}
-              required
-              options={departmentOptions}
-            />
-          </div>
-          <div className="flex-1">
-            <InputField
               label="Role"
               dropdown={true}
               register={register}
@@ -240,34 +215,6 @@ const AddNewAdmin = () => {
               error={errors.role}
               required
               options={roleOptions}
-            />
-          </div>
-        </div>
-
-        <h1 className="text-xl font-semibold mt-8">Security</h1>
-        <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
-
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <InputField
-              label="Password"
-              type="password"
-              placeholder="Enter Password"
-              register={register}
-              name="password"
-              error={errors.password}
-              required
-            />
-          </div>
-          <div className="flex-1">
-            <InputField
-              label="Confirm Password"
-              type="password"
-              placeholder="Confirm Password"
-              register={register}
-              name="confirmPassword"
-              error={errors.confirmPassword}
-              required
             />
           </div>
         </div>

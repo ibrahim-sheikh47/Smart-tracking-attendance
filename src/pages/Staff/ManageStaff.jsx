@@ -16,8 +16,9 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Button from "@mui/material/Button";
 
 // Import Firebase
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, getDoc } from "firebase/firestore";
 import { firestoreDb } from "../../config/firebase.jsx";
+import { getAuth } from "firebase/auth";
 
 const paginationModel = { page: 0, pageSize: 5 };
 
@@ -28,6 +29,36 @@ export default function ManageStaff() {
   const [error, setError] = React.useState(null);
   const [openDialog, setOpenDialog] = React.useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = React.useState(null);
+  const [currentAdmin, setCurrentAdmin] = React.useState(null);
+
+  // Get the current admin user
+  React.useEffect(() => {
+    const fetchCurrentAdmin = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (user) {
+        try {
+          // Get the admin document
+          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid));
+          if (adminDoc.exists()) {
+            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() });
+          } else {
+            console.error("Admin document not found");
+            setError("Admin account not found. Please contact support.");
+          }
+        } catch (error) {
+          console.error("Error fetching admin data:", error);
+          setError("Failed to load admin data. Please try again.");
+        }
+      } else {
+        setError("You must be logged in as an admin to view this page.");
+      }
+    };
+
+    fetchCurrentAdmin();
+  }, []);
+
   const confirmDelete = (firestoreId) => {
     setSelectedEmployeeId(firestoreId);
     setOpenDialog(true);
@@ -36,8 +67,11 @@ export default function ManageStaff() {
   // Fetch employees from Firebase
   const fetchEmployees = async () => {
     try {
+      if (!currentAdmin) return;
+
       setLoading(true);
-      const employeesCollection = collection(firestoreDb, "employees");
+      // Get employees from the admin's subcollection
+      const employeesCollection = collection(firestoreDb, "admins", currentAdmin.id, "employees");
       const employeeSnapshot = await getDocs(employeesCollection);
 
       const employeeList = employeeSnapshot.docs.map((doc, index) => {
@@ -46,15 +80,16 @@ export default function ManageStaff() {
           id: (index + 1).toString(), // Sequential display ID
           firestoreId: doc.id, // Preserve original ID for edit/delete
           name: `${data.firstName} ${data.lastName}`,
-          department: data.department,
+          department: data.department || "Not specified",
           status: "Present",
           profileImageUrl: data.profileImageUrl || "",
           firstName: data.firstName,
           lastName: data.lastName,
-          designation: data.designation,
+          designation: data.designation || "Not specified",
           email: data.email,
           phoneNumber: data.phoneNumber,
           hourlyRate: data.hourlyRate,
+          adminId: currentAdmin.id, // Store the admin ID
         };
       });
 
@@ -68,18 +103,27 @@ export default function ManageStaff() {
     }
   };
 
-  // Load employees on component mount
+  // Load employees when admin data is available
   React.useEffect(() => {
-    fetchEmployees();
-  }, []);
+    if (currentAdmin) {
+      fetchEmployees();
+    }
+  }, [currentAdmin]);
 
   // Delete employee
   const handleConfirmDelete = async () => {
     try {
-      await deleteDoc(doc(firestoreDb, "employees", selectedEmployeeId));
+      if (!currentAdmin) {
+        setError("Admin authentication required");
+        return;
+      }
+
+      // Delete from the admin's employees subcollection
+      await deleteDoc(doc(firestoreDb, "admins", currentAdmin.id, "employees", selectedEmployeeId));
       fetchEmployees();
     } catch (error) {
       console.error("Error deleting employee: ", error);
+      setError("Failed to delete employee. Please try again.");
     } finally {
       setOpenDialog(false);
       setSelectedEmployeeId(null);
@@ -136,7 +180,7 @@ export default function ManageStaff() {
             style={"mt-5 w-[120px] text-white text-xs hover:bg-gray-700"}
             title={"View Details"}
             icon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
-            onClick={() => navigation(`/reports?id=${params.row.firestoreId}`)}
+            onClick={() => navigation(`/reports?id=${params.row.firestoreId}&adminId=${params.row.adminId}`)}
           />
         </div>
       ),

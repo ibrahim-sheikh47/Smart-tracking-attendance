@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,67 +11,104 @@ import {
   query,
   where,
   Timestamp,
+  getDoc,
+  doc,
 } from "firebase/firestore";
 import EmployeeTable from "../ui_components/Table.jsx";
 import QRCodeGenerator from "../pages/QrCodeGeneratior.jsx";
+import { getAuth } from "firebase/auth";
 
 const Dashboard = () => {
   const [staffList, setStaffList] = useState([]);
   const [checkIns, setCheckIns] = useState([]);
   const [checkOuts, setCheckOuts] = useState([]);
-  const [todayCheckIns, setTodayCheckIns] = useState([]); // New state for today's check-ins
+  const [todayCheckIns, setTodayCheckIns] = useState([]);
   const [absents, setAbsents] = useState([]);
   const [lateArrivals, setLateArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentAdmin, setCurrentAdmin] = useState(null);
 
   useEffect(() => {
-    const fetchAllData = async () => {
-      try {
-        setLoading(true);
+    // Get the current admin user
+    const fetchCurrentAdmin = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
 
-        // First get all staff members
-        const staff = await getAllStaffMembers();
-
-        // Then get all check-ins and check-outs for the table
-        const allCheckIns = await getAllCheckIns();
-        const allCheckOuts = await getAllCheckOuts();
-
-        // Then get today's check-ins for dashboard stats
-        const todayCheckins = await getTodayCheckIns();
-
-        // Calculate absents and late arrivals based on today's data
-        await calculateAbsentees(staff, todayCheckins);
-        await calculateLateArrivals(todayCheckins);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
+      if (user) {
+        try {
+          // Get the admin document
+          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid));
+          if (adminDoc.exists()) {
+            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() });
+          } else {
+            console.error("Admin document not found");
+          }
+        } catch (error) {
+          console.error("Error fetching admin data:", error);
+        }
       }
     };
 
-    fetchAllData();
-
-    // Set up a refresh interval (every 5 minutes)
-    const refreshInterval = setInterval(() => {
-      fetchAllData();
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(refreshInterval);
+    fetchCurrentAdmin();
   }, []);
+
+  useEffect(() => {
+    if (currentAdmin) {
+      const fetchAllData = async () => {
+        try {
+          setLoading(true);
+
+          // First get all staff members
+          const staff = await getAllStaffMembers();
+
+          // Then get all check-ins and check-outs for the table
+          const allCheckIns = await getAllCheckIns();
+          const allCheckOuts = await getAllCheckOuts();
+
+          // Then get today's check-ins for dashboard stats
+          const todayCheckins = await getTodayCheckIns();
+
+          // Calculate absents and late arrivals based on today's data
+          await calculateAbsentees(staff, todayCheckins);
+          await calculateLateArrivals(todayCheckins);
+        } catch (error) {
+          console.error("Error fetching dashboard data:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchAllData();
+
+      // Set up a refresh interval (every 5 minutes)
+      const refreshInterval = setInterval(() => {
+        fetchAllData();
+      }, 5 * 60 * 1000);
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [currentAdmin]);
 
   // Get all check-ins for the table
   const getAllCheckIns = async () => {
     try {
+      if (!currentAdmin) return [];
+
       // Create query for all check-ins
       const checkInsRef = collection(firestoreDb, "CheckIns");
 
-      // Get all check-ins
+      // Get employee IDs for this admin
+      const employeeIds = staffList.map(staff => staff.uid);
+
+      // Get all check-ins for employees of this admin
       const data = await getDocs(checkInsRef);
-      const allCheckIns = data.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-        employeeId: doc.data().employeeId || doc.id, // Fallback to doc.id if employeeId is missing
-      }));
+      const allCheckIns = data.docs
+        .map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+          employeeId: doc.data().employeeId || doc.id,
+        }))
+        .filter(checkIn => employeeIds.includes(checkIn.employeeId));
 
       console.log(`Fetched ${allCheckIns.length} total check-ins`);
 
@@ -110,6 +148,8 @@ const Dashboard = () => {
   // Get today's check-ins for dashboard stats
   const getTodayCheckIns = async () => {
     try {
+      if (!currentAdmin) return [];
+
       // Get today's date at midnight
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -119,13 +159,18 @@ const Dashboard = () => {
       const checkInsRef = collection(firestoreDb, "CheckIns");
       const q = query(checkInsRef, where("checkInTime", ">=", todayTimestamp));
 
+      // Get employee IDs for this admin
+      const employeeIds = staffList.map(staff => staff.uid);
+
       // Get today's check-ins
       const data = await getDocs(q);
-      const todayCheckIns = data.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-        employeeId: doc.data().employeeId || doc.id, // Fallback to doc.id if employeeId is missing
-      }));
+      const todayCheckIns = data.docs
+        .map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+          employeeId: doc.data().employeeId || doc.id,
+        }))
+        .filter(checkIn => employeeIds.includes(checkIn.employeeId));
 
       console.log(`Fetched ${todayCheckIns.length} check-ins for today`);
 
@@ -150,16 +195,23 @@ const Dashboard = () => {
   // Get all check-outs for the table
   const getAllCheckOuts = async () => {
     try {
+      if (!currentAdmin) return [];
+
       // Create query for all check-outs
       const checkOutsRef = collection(firestoreDb, "CheckOuts");
 
+      // Get employee IDs for this admin
+      const employeeIds = staffList.map(staff => staff.uid);
+
       // Get all check-outs
       const data = await getDocs(checkOutsRef);
-      const allCheckOuts = data.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-        employeeId: doc.data().employeeId || doc.id, // Fallback to doc.id if employeeId is missing
-      }));
+      const allCheckOuts = data.docs
+        .map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+          employeeId: doc.data().employeeId || doc.id,
+        }))
+        .filter(checkOut => employeeIds.includes(checkOut.employeeId));
 
       console.log(`Fetched ${allCheckOuts.length} total check-outs`);
 
@@ -198,23 +250,28 @@ const Dashboard = () => {
 
   const getAllStaffMembers = async () => {
     try {
-      const staffRef = collection(firestoreDb, "employees");
+      if (!currentAdmin) return [];
+
+      // Get employees from the admin's subcollection
+      const staffRef = collection(firestoreDb, "admins", currentAdmin.uid, "employees");
       const data = await getDocs(staffRef);
+
       const filteredStaff = data.docs.map((staffDoc) => {
         const docData = staffDoc.data();
         return {
           ...docData,
           staffId: staffDoc.id,
           uid: docData.uid || staffDoc.id, // Ensure uid exists, fallback to doc.id
+          adminId: currentAdmin.uid, // Add the admin ID to each employee
         };
       });
 
-      console.log(`Fetched ${filteredStaff.length} staff members`);
+      console.log(`Fetched ${filteredStaff.length} staff members for admin ${currentAdmin.uid}`);
 
       // Log each staff member to debug
       filteredStaff.forEach((staff) => {
         console.log(
-          `Staff member: ${staff.firstName} ${staff.lastName}, ID: ${staff.uid}`
+          `Staff member: ${staff.firstName} ${staff.lastName}, ID: ${staff.uid}, Admin: ${staff.adminId}`
         );
       });
 
@@ -257,68 +314,69 @@ const Dashboard = () => {
     }
   };
 
-const calculateLateArrivals = async (todayCheckins) => {
-  try {
-    // Use the passed today's check-ins or fetch them if not provided
-    const todayAttendance = todayCheckins || (await getTodayCheckIns());
+  const calculateLateArrivals = async (todayCheckins) => {
+    try {
+      // Use the passed today's check-ins or fetch them if not provided
+      const todayAttendance = todayCheckins || (await getTodayCheckIns());
 
-    // Filter for late arrivals (after 9:00 AM is the cutoff)
-    const lateStaff = todayAttendance.filter((record) => {
-      if (!record.checkInTime) return false;
+      // Filter for late arrivals (after 9:00 AM is the cutoff)
+      const lateStaff = todayAttendance.filter((record) => {
+        if (!record.checkInTime) return false;
 
-      try {
-        // Get the check-in time
-        const checkInTime =
-          typeof record.checkInTime.toDate === "function"
-            ? record.checkInTime.toDate()
-            : new Date(record.checkInTime);
+        try {
+          // Get the check-in time
+          const checkInTime =
+            typeof record.checkInTime.toDate === "function"
+              ? record.checkInTime.toDate()
+              : new Date(record.checkInTime);
 
-        // Create cutoff times for the same day
-        const checkInDate = new Date(checkInTime);
+          // Create cutoff times for the same day
+          const checkInDate = new Date(checkInTime);
 
-        // Standard cutoff time - 9:00 AM
-        // IMPORTANT: Adding 1 second buffer to allow for exact 9:00:00 check-ins
-        const cutoffTime = new Date(
-          checkInDate.getFullYear(),
-          checkInDate.getMonth(),
-          checkInDate.getDate(),
-          9, 0, 1, 0  // 9:00:01 AM cutoff (1 second after 9:00 AM)
-        );
+          // Standard cutoff time - 9:00 AM
+          // IMPORTANT: Adding 1 second buffer to allow for exact 9:00:00 check-ins
+          const cutoffTime = new Date(
+            checkInDate.getFullYear(),
+            checkInDate.getMonth(),
+            checkInDate.getDate(),
+            9, 0, 1, 0  // 9:00:01 AM cutoff (1 second after 9:00 AM)
+          );
 
-        // Early morning cutoff (before 5:00 AM is considered late)
-        const earlyMorningCutoff = new Date(
-          checkInDate.getFullYear(),
-          checkInDate.getMonth(),
-          checkInDate.getDate(),
-          5, 0, 0, 0  // 5:00 AM cutoff for early morning
-        );
+          // Early morning cutoff (before 5:00 AM is considered late)
+          const earlyMorningCutoff = new Date(
+            checkInDate.getFullYear(),
+            checkInDate.getMonth(),
+            checkInDate.getDate(),
+            5, 0, 0, 0  // 5:00 AM cutoff for early morning
+          );
 
-        // Consider late if:
-        // 1. Check-in is after 9:00:01 AM (allowing exactly 9:00:00 AM to be on time), or
-        // 2. Check-in is before 5:00 AM (very early morning is considered late)
-        const isLate = checkInTime > cutoffTime || checkInTime < earlyMorningCutoff;
+          // Consider late if:
+          // 1. Check-in is after 9:00:01 AM (allowing exactly 9:00:00 AM to be on time), or
+          // 2. Check-in is before 5:00 AM (very early morning is considered late)
+          const isLate = checkInTime > cutoffTime || checkInTime < earlyMorningCutoff;
 
-        // Log for debugging
-        console.log(
-          `Employee ${record.employeeId} check-in: ${checkInTime.toLocaleTimeString()}, ` +
-          `cutoff: ${cutoffTime.toLocaleTimeString()}, isLate: ${isLate}`
-        );
+          // Log for debugging
+          console.log(
+            `Employee ${record.employeeId} check-in: ${checkInTime.toLocaleTimeString()}, ` +
+            `cutoff: ${cutoffTime.toLocaleTimeString()}, isLate: ${isLate}`
+          );
 
-        return isLate;
-      } catch (error) {
-        console.error("Error processing late arrival:", error);
-        return false;
-      }
-    });
+          return isLate;
+        } catch (error) {
+          console.error("Error processing late arrival:", error);
+          return false;
+        }
+      });
 
-    console.log(`Found ${lateStaff.length} late arrivals today`);
-    setLateArrivals(lateStaff);
-    return lateStaff;
-  } catch (e) {
-    console.error("Error calculating late arrivals:", e);
-    return [];
-  }
-};
+      console.log(`Found ${lateStaff.length} late arrivals today`);
+      setLateArrivals(lateStaff);
+      return lateStaff;
+    } catch (e) {
+      console.error("Error calculating late arrivals:", e);
+      return [];
+    }
+  };
+
   console.log("Dashboard stats:", {
     totalStaff: staffList.length,
     todayCheckIns: todayCheckIns.length,

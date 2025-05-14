@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect } from "react"
 import ReactDOM from "react-dom/client"
 import { useForm } from "react-hook-form"
@@ -12,7 +10,7 @@ import InputField from "../../ui_components/InputField"
 import { auth, functions } from "../../config/firebase.jsx"
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "firebase/storage"
 import { httpsCallable } from "firebase/functions"
-import { getFirestore, doc, setDoc } from "firebase/firestore"
+import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore"
 // Import QR Code library
 import QRCode from "react-qr-code"
 
@@ -51,11 +49,34 @@ const AddNewStaff = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [submitError, setSubmitError] = useState("")
   const [generatingQR, setGeneratingQR] = useState(false)
+  const [currentAdmin, setCurrentAdmin] = useState(null)
 
   const currentUser = auth.currentUser
+
+  // Get current admin information to use their ID
   useEffect(() => {
-    console.log("Current user on page load:", currentUser)
-  }, [])
+    const fetchCurrentAdmin = async () => {
+      if (currentUser) {
+        try {
+          const db = getFirestore()
+          const adminDocRef = doc(db, "admins", currentUser.uid)
+          const adminDocSnap = await getDoc(adminDocRef)
+
+          if (adminDocSnap.exists()) {
+            setCurrentAdmin(adminDocSnap.data())
+            console.log("Current admin data:", adminDocSnap.data())
+          } else {
+            console.error("No admin document found for current user")
+            setSubmitError("Authentication error: Admin profile not found")
+          }
+        } catch (error) {
+          console.error("Error fetching admin data:", error)
+        }
+      }
+    }
+
+    fetchCurrentAdmin()
+  }, [currentUser])
 
   const {
     register,
@@ -90,6 +111,7 @@ const AddNewStaff = () => {
         email: employeeData.email,
         designation: employeeData.designation,
         department: employeeData.department,
+        adminId: employeeData.adminId,
       })
 
       // Create a canvas element to render the QR code
@@ -170,9 +192,29 @@ const AddNewStaff = () => {
     return `${prefix}${randomDigits}`
   }
 
+  // Check if admin ID is available
+  const validateAdminContext = () => {
+    if (!currentUser) {
+      setSubmitError("Authentication error: You must be logged in to add employees")
+      return false
+    }
+
+    if (!currentAdmin) {
+      setSubmitError("Authentication error: Admin profile not found")
+      return false
+    }
+
+    return true
+  }
+
   // Handle form submission
   const onSubmit = async (data) => {
     try {
+      // Validate admin context first
+      if (!validateAdminContext()) {
+        return
+      }
+
       setIsSubmitting(true)
       setSubmitError("")
 
@@ -189,6 +231,8 @@ const AddNewStaff = () => {
         workingHours: Number(data.workingHours),
         overtimeRate: Number(data.overtimeRate),
         createdAt: new Date(),
+        // Add the admin's ID who is creating this employee
+        adminId: currentUser.uid,
       }
 
       // Call the Cloud Function to create the employee
@@ -214,9 +258,12 @@ const AddNewStaff = () => {
         qrCodeGeneratedAt: new Date(),
       }
 
-      // Save employee data to Firestore
+      // Save employee data to Firestore under the admin's subcollection
       const db = getFirestore()
-      await setDoc(doc(db, "employees", result.data.uid), employeeWithQR)
+      await setDoc(
+        doc(db, "admins", currentUser.uid, "employees", result.data.uid),
+        employeeWithQR
+      )
 
       console.log("Employee created successfully with QR code:", qrCodeUrl)
 

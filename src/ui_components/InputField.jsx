@@ -1,4 +1,3 @@
-// src/ui_components/InputField.js
 import React from "react";
 import KeyboardArrowDownOutlinedIcon from "@mui/icons-material/KeyboardArrowDownOutlined";
 
@@ -17,6 +16,7 @@ const InputField = ({
   dropdown,
   register, // Added for react-hook-form
   error, // Added to display error message
+  disabled, // Added disabled prop
 }) => {
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
@@ -27,9 +27,12 @@ const InputField = ({
             {...(register ? register(name) : { value, onChange, name })}
             placeholder={placeholder}
             required={required}
+            disabled={disabled}
             className={`border ${
               error ? "border-red-500" : "border-[#CBD5E1]"
-            } rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296] w-full`}
+            } rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296] w-full ${
+              disabled ? "bg-gray-100 cursor-not-allowed opacity-75" : ""
+            }`}
             rows="3"
             cols="30"
             maxLength={200}
@@ -41,9 +44,12 @@ const InputField = ({
           <select
             {...(register ? register(name) : { value, onChange, name })}
             required={required}
+            disabled={disabled}
             className={`border ${
               error ? "border-red-500" : "border-[#CBD5E1]"
-            } rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296] appearance-none pr-10 w-full cursor-pointer`}
+            } rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296] appearance-none pr-10 w-full cursor-pointer ${
+              disabled ? "bg-gray-100 cursor-not-allowed opacity-75" : ""
+            }`}
           >
             <option value="">Select {label}</option>
             {options?.map((option, index) => (
@@ -65,9 +71,12 @@ const InputField = ({
             {...(register ? register(name) : { value, onChange, name })}
             placeholder={placeholder}
             required={required}
+            disabled={disabled}
             className={`border ${
               error ? "border-red-500" : "border-[#CBD5E1]"
-            } rounded-lg h-10 w-full p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296]`}
+            } rounded-lg h-10 w-full p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296] ${
+              disabled ? "bg-gray-100 cursor-not-allowed opacity-75" : ""
+            }`}
           />
           {error && <p className="text-red-500 text-xs mt-1">{error.message}</p>}
         </div>

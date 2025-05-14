@@ -26,8 +26,6 @@ const EmployeeTable = ({
   checkIns = [],
   checkOuts = [],
   loading = false,
-  onDelete,
-  onEdit,
 }) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -413,7 +411,6 @@ const EmployeeTable = ({
               <TableCell sx={{ fontWeight: "bold" }}>Check-out</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Total Hours</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Action</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -458,20 +455,6 @@ const EmployeeTable = ({
                       color={getStatusColor(employee.status)}
                       size="small"
                     />
-                  </TableCell>
-                  <TableCell>
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      {onDelete && (
-                        <IconButton onClick={() => onDelete(employee.uid)}>
-                          <DeleteIcon color="error" />
-                        </IconButton>
-                      )}
-                      {onEdit && (
-                        <IconButton onClick={() => onEdit(employee)}>
-                          <EditIcon color="primary" />
-                        </IconButton>
-                      )}
-                    </div>
                   </TableCell>
                 </TableRow>
               ))

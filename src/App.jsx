@@ -21,6 +21,7 @@ import AttendanceHistory from "./pages/Reports/AttendanceHistory";
 import Payroll from "./pages/Payroll/Payroll";
 import PayrollDetails from "./pages/Payroll/PayrollDetails";
 import SettingsPage from "./pages/Settings/Settings.jsx";
+
 function App() {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -39,7 +40,9 @@ function App() {
           if (adminDocSnap.exists()) {
             // User is an admin
             const adminData = adminDocSnap.data();
-            setUserRole(adminData.isSuper ? "superadmin" : "admin");
+            const role = adminData.isSuper ? "superadmin" : "admin";
+            setUserRole(role);
+            console.log("User authenticated with role:", role);
           } else {
             // Check if user is an employee
             const employeeDocRef = doc(firestoreDb, "employees", user.uid);
@@ -50,11 +53,15 @@ function App() {
             } else {
               // User not found in any collection
               setUserRole("unknown");
+              // Sign out users who don't belong to any valid collection
+              auth.signOut();
             }
           }
         } catch (error) {
           console.error("Error checking user role:", error);
           setUserRole("unknown");
+          // Sign out on error
+          auth.signOut();
         }
       } else {
         setUser(null);
@@ -68,53 +75,85 @@ function App() {
 
   if (loading)
     return (
-      <div className="animate-spin w-[max-content] m-auto mt-32">
-        Loading...
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
-
-  // Function to check if user has access to a route
-  const hasAccess = (requiredRoles) => {
-    if (!requiredRoles) return true; // No role restrictions
-    if (!userRole) return false; // User has no role
-    return requiredRoles.includes(userRole);
-  };
 
   return (
     <Router>
       {user ? (
-        <Layout userRole={userRole}>
-          <Routes>
-            {/* Routes accessible to all authenticated users */}
-            <Route path="/dashboard" element={<Dashboard />} />
+        userRole === "employee" ? (
+          <div className="text-center mt-32 text-xl text-red-600">
+            Unauthorized Access. Contact Admin.
+          </div>
+        ) : (
+          <Layout userRole={userRole}>
+            <Routes>
+              {/* Routes accessible to admins */}
+              {userRole === "admin" && (
+                <>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/manage-staff" element={<ManageStaff />} />
+                  <Route path="/manage-staff/AddNewStaff" element={<AddNewStaff />} />
+                  <Route path="/payroll" element={<Payroll />} />
+                  <Route path="/payroll/payroll-detail/:id" element={<PayrollDetails />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/reports/:employeeId/history" element={<AttendanceHistory />} />
+                </>
+              )}
 
-            {/* Routes accessible to admins and super admins */}
-            {hasAccess(["admin", "superadmin"]) && (
-              <>
-                <Route path="/manage-staff" element={<ManageStaff />} />
-                <Route path="/manage-staff/AddNewStaff" element={<AddNewStaff />} />
-                <Route path="/payroll" element={<Payroll />} />
-                <Route path="/payroll/payroll-detail/:id" element={<PayrollDetails />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/reports/:employeeId/history" element={<AttendanceHistory />} />
-              </>
-            )}
+              {/* Routes accessible only to super admins */}
+              {userRole === "superadmin" && (
+                <>
+                  <Route path="/admin-management" element={<AdminManagement />} />
+                  <Route path="/admin-management/add-new-admin" element={<AddNewAdmin />} />
+                  <Route path="/manage-staff" element={<ManageStaff />} />
+                  <Route path="/manage-staff/AddNewStaff" element={<AddNewStaff />} />
+                  <Route path="/payroll" element={<Payroll />} />
+                  <Route path="/payroll/payroll-detail/:id" element={<PayrollDetails />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/reports/:employeeId/history" element={<AttendanceHistory />} />
+                  {/* Removed dashboard route for superadmin */}
+                </>
+              )}
 
-            {/* Routes accessible only to super admins */}
-            {hasAccess(["superadmin"]) && (
-              <>
-                <Route path="/admin-management" element={<AdminManagement />} />
-                <Route path="/admin-management/add-new-admin" element={<AddNewAdmin />} />
-              </>
-            )}
+              {/* Default routes - route to appropriate landing page based on role */}
+              <Route
+                path="/"
+                element={
+                  userRole === "superadmin" ? (
+                    <Navigate to="/admin-management" replace />
+                  ) : (
+                    <Navigate to="/dashboard" replace />
+                  )
+                }
+              />
 
+              {/* Redirect superadmin attempting to access dashboard */}
+              {userRole === "superadmin" && (
+                <Route
+                  path="/dashboard"
+                  element={<Navigate to="/admin-management" replace />}
+                />
+              )}
 
-            {/* Default routes */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Layout>
+              {/* Catch-all routes */}
+              <Route
+                path="*"
+                element={
+                  userRole === "superadmin" ? (
+                    <Navigate to="/admin-management" replace />
+                  ) : (
+                    <Navigate to="/dashboard" replace />
+                  )
+                }
+              />
+            </Routes>
+          </Layout>
+        )
       ) : (
         <Routes>
           <Route path="*" element={<Auth />} />

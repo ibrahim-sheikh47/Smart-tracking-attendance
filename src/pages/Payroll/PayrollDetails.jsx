@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+"use client"
+
+import React, { useState, useEffect } from "react"
 import {
   Box,
   Typography,
@@ -14,74 +16,117 @@ import {
   TableRow,
   CircularProgress,
   Alert,
-} from "@mui/material";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import WorkIcon from "@mui/icons-material/Work";
-import ScheduleIcon from "@mui/icons-material/Schedule";
-import PaidIcon from "@mui/icons-material/Paid";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { ChevronLeft } from "@mui/icons-material";
-import CustomButton from "../../ui_components/CustomButton";
-import { useNavigate, useParams } from "react-router-dom";
-import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
-import { firestoreDb } from "../../config/firebase.jsx";
-import { format, differenceInMinutes } from "date-fns";
+  Button,
+} from "@mui/material"
+import AccessTimeIcon from "@mui/icons-material/AccessTime"
+import WorkIcon from "@mui/icons-material/Work"
+import ScheduleIcon from "@mui/icons-material/Schedule"
+import PaidIcon from "@mui/icons-material/Paid"
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp"
+import CheckCircleIcon from "@mui/icons-material/CheckCircle"
+import { ChevronLeft } from "@mui/icons-material"
+import CustomButton from "../../ui_components/CustomButton"
+import { useNavigate, useParams, useLocation } from "react-router-dom"
+import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore"
+import { firestoreDb } from "../../config/firebase.jsx"
+import { format, differenceInMinutes } from "date-fns"
+import { getAuth } from "firebase/auth"
 
 const PayrollDetail = () => {
-  const navigate = useNavigate();
-  const { id } = useParams(); // Get employee ID from URL
-  const [employee, setEmployee] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [totalCompExpanded, setTotalCompExpanded] = useState(false);
-  const [overtimeExpanded, setOvertimeExpanded] = useState(false);
+  const navigate = useNavigate()
+  const { id } = useParams() // Get employee ID from URL
+  const location = useLocation()
+  const queryParams = new URLSearchParams(location.search)
+  const adminId = queryParams.get("adminId")
 
+  const [employee, setEmployee] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [totalCompExpanded, setTotalCompExpanded] = useState(false)
+  const [overtimeExpanded, setOvertimeExpanded] = useState(false)
+  const [currentAdmin, setCurrentAdmin] = useState(null)
+
+  // Get the current admin user
   useEffect(() => {
-    if (id) {
-      fetchEmployeeData(id);
+    const fetchCurrentAdmin = async () => {
+      const auth = getAuth()
+      const user = auth.currentUser
+
+      if (user) {
+        try {
+          // Get the admin document
+          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid))
+          if (adminDoc.exists()) {
+            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() })
+          } else {
+            console.error("Admin document not found")
+            setError("Admin account not found. Please contact support.")
+          }
+        } catch (error) {
+          console.error("Error fetching admin data:", error)
+          setError("Failed to load admin data. Please try again.")
+        }
+      } else {
+        setError("You must be logged in as an admin to view this page.")
+      }
     }
-  }, [id]);
+
+    fetchCurrentAdmin()
+  }, [])
+
+  // Fetch employee data when admin data is available
+  useEffect(() => {
+    if (currentAdmin && id) {
+      fetchEmployeeData(id)
+    }
+  }, [id, currentAdmin])
 
   const fetchEmployeeData = async (employeeId) => {
     try {
-      setLoading(true);
+      setLoading(true)
 
-      // Fetch employee basic info
-      const employeeDocRef = doc(firestoreDb, "employees", employeeId);
-      const employeeSnapshot = await getDoc(employeeDocRef);
-
-      if (!employeeSnapshot.exists()) {
-        setError("Employee not found");
-        setLoading(false);
-        return;
+      // Verify the admin has access to this employee
+      if (adminId && adminId !== currentAdmin.id) {
+        setError("You don't have permission to view this employee's payroll")
+        setLoading(false)
+        return
       }
 
-      const employeeData = employeeSnapshot.data();
+      // Fetch employee basic info from the admin's subcollection
+      const employeeDocRef = doc(firestoreDb, "admins", currentAdmin.id, "employees", employeeId)
+      const employeeSnapshot = await getDoc(employeeDocRef)
+
+      if (!employeeSnapshot.exists()) {
+        setError("Employee not found or you don't have permission to view this employee")
+        setLoading(false)
+        return
+      }
+
+      const employeeData = employeeSnapshot.data()
 
       // Fetch check-ins for this employee
-      const checkInsRef = collection(firestoreDb, "CheckIns");
-      const checkInsQuery = query(checkInsRef, where("employeeId", "==", employeeId));
-      const checkInsSnapshot = await getDocs(checkInsQuery);
+      const checkInsRef = collection(firestoreDb, "CheckIns")
+      const checkInsQuery = query(checkInsRef, where("employeeId", "==", employeeId))
+      const checkInsSnapshot = await getDocs(checkInsQuery)
 
       // Fetch check-outs for this employee
-      const checkOutsRef = collection(firestoreDb, "CheckOuts");
-      const checkOutsQuery = query(checkOutsRef, where("employeeId", "==", employeeId));
-      const checkOutsSnapshot = await getDocs(checkOutsQuery);
+      const checkOutsRef = collection(firestoreDb, "CheckOuts")
+      const checkOutsQuery = query(checkOutsRef, where("employeeId", "==", employeeId))
+      const checkOutsSnapshot = await getDocs(checkOutsQuery)
 
       // Process check-ins and check-outs
-      const checkIns = [];
+      const checkIns = []
       checkInsSnapshot.forEach((doc) => {
-        const data = doc.data();
+        const data = doc.data()
         if (data.checkInTime) {
-          let checkInTime;
+          let checkInTime
           if (data.checkInTime.toDate) {
-            checkInTime = data.checkInTime.toDate();
+            checkInTime = data.checkInTime.toDate()
           } else if (data.checkInTime.seconds) {
-            checkInTime = new Date(data.checkInTime.seconds * 1000);
+            checkInTime = new Date(data.checkInTime.seconds * 1000)
           } else {
-            checkInTime = new Date(data.checkInTime);
+            checkInTime = new Date(data.checkInTime)
           }
 
           checkIns.push({
@@ -89,21 +134,21 @@ const PayrollDetail = () => {
             time: checkInTime,
             sessionId: data.sessionId,
             isLate: data.isLate || false,
-          });
+          })
         }
-      });
+      })
 
-      const checkOuts = [];
+      const checkOuts = []
       checkOutsSnapshot.forEach((doc) => {
-        const data = doc.data();
+        const data = doc.data()
         if (data.checkOutTime) {
-          let checkOutTime;
+          let checkOutTime
           if (data.checkOutTime.toDate) {
-            checkOutTime = data.checkOutTime.toDate();
+            checkOutTime = data.checkOutTime.toDate()
           } else if (data.checkOutTime.seconds) {
-            checkOutTime = new Date(data.checkOutTime.seconds * 1000);
+            checkOutTime = new Date(data.checkOutTime.seconds * 1000)
           } else {
-            checkOutTime = new Date(data.checkOutTime);
+            checkOutTime = new Date(data.checkOutTime)
           }
 
           checkOuts.push({
@@ -111,63 +156,63 @@ const PayrollDetail = () => {
             time: checkOutTime,
             sessionId: data.sessionId,
             isEarly: data.isEarly || false,
-          });
+          })
         }
-      });
+      })
 
       // Calculate total working hours and overtime
-      let totalWorkingMinutes = 0;
-      let totalOvertimeMinutes = 0;
+      let totalWorkingMinutes = 0
+      let totalOvertimeMinutes = 0
 
       // Match check-ins with check-outs by sessionId
       checkIns.forEach((checkIn) => {
-        const matchingCheckOut = checkOuts.find((checkOut) => checkOut.sessionId === checkIn.sessionId);
+        const matchingCheckOut = checkOuts.find((checkOut) => checkOut.sessionId === checkIn.sessionId)
 
         if (matchingCheckOut) {
-          const workingMinutes = differenceInMinutes(matchingCheckOut.time, checkIn.time);
+          const workingMinutes = differenceInMinutes(matchingCheckOut.time, checkIn.time)
 
           if (workingMinutes > 0) {
-            totalWorkingMinutes += workingMinutes;
+            totalWorkingMinutes += workingMinutes
 
             // Calculate overtime (assuming 8 hours standard workday)
-            const standardWorkdayMinutes = 8 * 60;
+            const standardWorkdayMinutes = 8 * 60
             if (workingMinutes > standardWorkdayMinutes) {
-              totalOvertimeMinutes += workingMinutes - standardWorkdayMinutes;
+              totalOvertimeMinutes += workingMinutes - standardWorkdayMinutes
             }
           }
         }
-      });
+      })
 
       // Convert minutes to hours and minutes format
-      const totalWorkingHours = Math.floor(totalWorkingMinutes / 60);
-      const remainingWorkingMinutes = totalWorkingMinutes % 60;
+      const totalWorkingHours = Math.floor(totalWorkingMinutes / 60)
+      const remainingWorkingMinutes = totalWorkingMinutes % 60
 
-      const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60);
-      const remainingOvertimeMinutes = totalOvertimeMinutes % 60;
+      const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60)
+      const remainingOvertimeMinutes = totalOvertimeMinutes % 60
 
       // Check if employee is present today
-      const today = format(new Date(), "yyyy-MM-dd");
-      const isTodayPresent = checkIns.some((checkIn) => format(checkIn.time, "yyyy-MM-dd") === today);
+      const today = format(new Date(), "yyyy-MM-dd")
+      const isTodayPresent = checkIns.some((checkIn) => format(checkIn.time, "yyyy-MM-dd") === today)
 
       // Calculate compensation
-      const hourlyRate = employeeData.hourlyRate || 0;
-      const overtimeRate = employeeData.overtimeRate || hourlyRate * 1.5;
-      const regularMinutes = totalWorkingMinutes - totalOvertimeMinutes;
-      const regularHours = regularMinutes / 60;
-      const overtimeHours = totalOvertimeMinutes / 60;
+      const hourlyRate = employeeData.hourlyRate || 0
+      const overtimeRate = employeeData.overtimeRate || hourlyRate * 1.5
+      const regularMinutes = totalWorkingMinutes - totalOvertimeMinutes
+      const regularHours = regularMinutes / 60
+      const overtimeHours = totalOvertimeMinutes / 60
 
-      const regularPay = regularHours * hourlyRate;
-      const overtimePay = overtimeHours * overtimeRate;
-      const totalPay = regularPay + overtimePay;
+      const regularPay = regularHours * hourlyRate
+      const overtimePay = overtimeHours * overtimeRate
+      const totalPay = regularPay + overtimePay
 
       // Calculate monthly values (assuming 4 weeks in a month)
-      const hoursPerWeek = employeeData.workingHours || 40;
-      const hoursPerMonth = hoursPerWeek * 4;
+      const hoursPerWeek = employeeData.workingHours || 40
+      const hoursPerMonth = hoursPerWeek * 4
 
       // Prepare the employee data object
       const formattedEmployee = {
         id: employeeId,
-        name: `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim(),
+        name: `${employeeData.firstName || ""} ${employeeData.lastName || ""}`.trim(),
         title: employeeData.jobTitle || employeeData.title || "Employee",
         avatar: employeeData.photoURL || "",
         status: isTodayPresent ? "Active" : "Inactive",
@@ -176,9 +221,10 @@ const PayrollDetail = () => {
         phone: employeeData.phoneNumber || "N/A",
         totalHours: `${hoursPerMonth} hours`,
         workingHours: `${totalWorkingHours} hours ${remainingWorkingMinutes} mins`,
-        overTime: totalOvertimeMinutes > 0 ?
-          `${totalOvertimeHours} hours ${remainingOvertimeMinutes} mins` :
-          "0 hours",
+        overTime:
+          totalOvertimeMinutes > 0
+            ? `${totalOvertimeHours} hours ${remainingOvertimeMinutes} mins`
+            : "0 hours",
         hourlyRate: `D ${hourlyRate.toFixed(2)}`,
         salary: `D ${totalPay.toFixed(2)}`,
         totalCompensation: `D ${regularPay.toFixed(2)}`,
@@ -195,31 +241,32 @@ const PayrollDetail = () => {
           hoursPerMonth: `${totalOvertimeHours.toFixed(1)} hours`,
           calculation: `${hourlyRate.toFixed(2)} x 1.5 x ${totalOvertimeHours.toFixed(2)}`,
         },
-      };
+        adminId: currentAdmin.id,
+      }
 
-      setEmployee(formattedEmployee);
-      setError(null);
+      setEmployee(formattedEmployee)
+      setError(null)
     } catch (err) {
-      console.error("Error fetching employee data:", err);
-      setError("Failed to load employee data. Please try again later.");
+      console.error("Error fetching employee data:", err)
+      setError("Failed to load employee data. Please try again later.")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   // Get initials for avatar fallback
   const getInitials = (name) => {
-    if (!name) return "";
-    const parts = name.split(" ");
-    return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || ""}`.toUpperCase();
-  };
+    if (!name) return ""
+    const parts = name.split(" ")
+    return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || ""}`.toUpperCase()
+  }
 
   if (loading) {
     return (
       <Box sx={{ p: 3, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "70vh" }}>
         <CircularProgress />
       </Box>
-    );
+    )
   }
 
   if (error) {
@@ -232,7 +279,7 @@ const PayrollDetail = () => {
           </Button>
         </Box>
       </Box>
-    );
+    )
   }
 
   if (!employee) {
@@ -245,7 +292,7 @@ const PayrollDetail = () => {
           </IconButton>
         </Box>
       </Box>
-    );
+    )
   }
 
   return (
@@ -270,10 +317,7 @@ const PayrollDetail = () => {
               </Typography>
             </Box>
           </Box>
-          <CustomButton
-            title={"Export"}
-            style={"text-white w-[110px] h-[40px]"}
-          />
+          <CustomButton title={"Export"} style={"text-white w-[110px] h-[40px]"} />
         </Box>
 
         {/* Employee Profile */}
@@ -361,10 +405,7 @@ const PayrollDetail = () => {
             </div>
             <div className="flex items-center">
               <p className="text-lg font-bold">{employee.workingHours}</p>
-              <CheckCircleIcon
-                className="text-teal-600 ml-2"
-                fontSize="small"
-              />
+              <CheckCircleIcon className="text-teal-600 ml-2" fontSize="small" />
             </div>
           </div>
 
@@ -383,10 +424,7 @@ const PayrollDetail = () => {
             </div>
             <div className="flex items-center">
               <p className="text-lg font-bold">{employee.hourlyRate}</p>
-              <CheckCircleIcon
-                className="text-teal-600 ml-2"
-                fontSize="small"
-              />
+              <CheckCircleIcon className="text-teal-600 ml-2" fontSize="small" />
             </div>
           </div>
         </div>
@@ -430,19 +468,11 @@ const PayrollDetail = () => {
               <Typography variant="h6" fontWeight="bold" sx={{ mr: 1 }}>
                 {employee.totalCompensation}
               </Typography>
-              {totalCompExpanded ? (
-                <KeyboardArrowUpIcon />
-              ) : (
-                <KeyboardArrowDownIcon />
-              )}
+              {totalCompExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
             </Box>
           </Box>
           <Collapse in={totalCompExpanded} timeout="auto" unmountOnExit>
-            <TableContainer
-              component={Paper}
-              elevation={0}
-              sx={{ borderTop: "none" }}
-            >
+            <TableContainer component={Paper} elevation={0} sx={{ borderTop: "none" }}>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -485,19 +515,11 @@ const PayrollDetail = () => {
               <Typography variant="h6" fontWeight="bold" sx={{ mr: 1 }}>
                 {employee.overtimePay}
               </Typography>
-              {overtimeExpanded ? (
-                <KeyboardArrowUpIcon />
-              ) : (
-                <KeyboardArrowDownIcon />
-              )}
+              {overtimeExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
             </Box>
           </Box>
           <Collapse in={overtimeExpanded} timeout="auto" unmountOnExit>
-            <TableContainer
-              component={Paper}
-              elevation={0}
-              sx={{ borderTop: "none" }}
-            >
+            <TableContainer component={Paper} elevation={0} sx={{ borderTop: "none" }}>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -509,18 +531,10 @@ const PayrollDetail = () => {
                 </TableHead>
                 <TableBody>
                   <TableRow>
-                    <TableCell>
-                      {employee.overtimeDetails.compPerHour}
-                    </TableCell>
-                    <TableCell>
-                      {employee.overtimeDetails.hoursPerWeek}
-                    </TableCell>
-                    <TableCell>
-                      {employee.overtimeDetails.hoursPerMonth}
-                    </TableCell>
-                    <TableCell>
-                      {employee.overtimeDetails.calculation}
-                    </TableCell>
+                    <TableCell>{employee.overtimeDetails.compPerHour}</TableCell>
+                    <TableCell>{employee.overtimeDetails.hoursPerWeek}</TableCell>
+                    <TableCell>{employee.overtimeDetails.hoursPerMonth}</TableCell>
+                    <TableCell>{employee.overtimeDetails.calculation}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -529,7 +543,7 @@ const PayrollDetail = () => {
         </Box>
       </Paper>
     </Box>
-  );
-};
+  )
+}
 
-export default PayrollDetail;
+export default PayrollDetail

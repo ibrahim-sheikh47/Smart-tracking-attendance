@@ -205,7 +205,6 @@ const AdminManagement = () => {
               <TableRow>
                 <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Department</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Role</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Created At</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
@@ -218,7 +217,6 @@ const AdminManagement = () => {
                     {admin.firstName} {admin.lastName}
                   </TableCell>
                   <TableCell>{admin.email}</TableCell>
-                  <TableCell>{admin.department}</TableCell>
                   <TableCell>
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
                       Admin
@@ -231,9 +229,6 @@ const AdminManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Link to={`/admin-management/edit-admin/${admin.id}`}>
-                        <EditIcon className="text-blue-600 cursor-pointer" />
-                      </Link>
                       <DeleteIcon
                         className="text-red-600 cursor-pointer"
                         onClick={() => handleDeleteClick(admin)}

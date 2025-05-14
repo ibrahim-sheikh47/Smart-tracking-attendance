@@ -5,7 +5,8 @@ import QRCode from "react-qr-code"
 import { Modal, Box, Typography, Button } from "@mui/material"
 import { saveAs } from "file-saver"
 import { firestoreDb } from "../config/firebase.jsx"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import { collection, addDoc, serverTimestamp, getDoc, doc } from "firebase/firestore"
+import { getAuth } from "firebase/auth"
 
 const QRCodeGenerator = () => {
   const [qrValue, setQrValue] = useState("")
@@ -15,25 +16,63 @@ const QRCodeGenerator = () => {
   // eslint-disable-next-line no-unused-vars
   const [expiryTime, setExpiryTime] = useState(null)
   const [countdown, setCountdown] = useState(0)
+  const [currentAdmin, setCurrentAdmin] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  // Generate a unique QR code value with timestamp and session ID
+  // Get the current admin user when component mounts
+  useEffect(() => {
+    const fetchCurrentAdmin = async () => {
+      try {
+        const auth = getAuth()
+        const user = auth.currentUser
+
+        if (user) {
+          // Get the admin document
+          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid))
+          if (adminDoc.exists()) {
+            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() })
+          } else {
+            console.error("Admin document not found")
+            setError("Admin account not found. Please contact support.")
+          }
+        } else {
+          setError("You must be logged in as an admin to generate QR codes.")
+        }
+      } catch (error) {
+        console.error("Error fetching admin data:", error)
+        setError("Failed to load admin data. Please try again.")
+      }
+    }
+
+    fetchCurrentAdmin()
+  }, [])
+
+  // Generate a unique QR code value with timestamp, session ID, and admin ID
   const generateQRCode = async () => {
+    if (!currentAdmin) {
+      setError("Admin authentication required to generate QR codes")
+      return
+    }
+
     try {
+      setLoading(true)
       // Generate a unique session ID
       const newSessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
       setSessionId(newSessionId)
 
-      // Set expiry time (5 minutes from now)
+      // Set expiry time (30 minutes from now)
       const expiry = new Date(Date.now() + 30 * 60000)
       setExpiryTime(expiry)
-      setCountdown(1800) // 5 minutes in seconds
+      setCountdown(1800) // 30 minutes in seconds
 
-      // Create QR code data with session information
+      // Create QR code data with session information and admin ID
       const qrData = JSON.stringify({
         sessionId: newSessionId,
         timestamp: new Date().toISOString(),
         type: "attendance",
         expiry: expiry.toISOString(),
+        adminId: currentAdmin.id, // Include the admin ID in the QR code
       })
 
       setQrValue(qrData)
@@ -45,13 +84,18 @@ const QRCodeGenerator = () => {
         createdAt: serverTimestamp(),
         expiresAt: expiry,
         active: true,
+        adminId: currentAdmin.id, // Store the admin ID with the session
+        adminName: currentAdmin.name || "Admin", // Store admin name for reference
       })
 
       // Open modal automatically when QR is generated
       setOpenModal(true)
+      setError(null)
     } catch (error) {
       console.error("Error generating QR code:", error)
-      alert("Failed to generate QR code. Please try again.")
+      setError("Failed to generate QR code. Please try again.")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -115,14 +159,28 @@ const QRCodeGenerator = () => {
 
   return (
     <div className="mt-6">
+      {error && <div className="text-red-500 mb-2">{error}</div>}
+
       {!isGenerated ? (
-        <Button variant="contained" color="primary" onClick={generateQRCode} style={{ backgroundColor: "#4CAF50" }}>
-          Generate QR Code
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={generateQRCode}
+          style={{ backgroundColor: "#4CAF50" }}
+          disabled={loading || !currentAdmin}
+        >
+          {loading ? "Generating..." : "Generate QR Code"}
         </Button>
       ) : (
         <div className="flex gap-4">
-          <Button variant="contained" color="primary" onClick={generateQRCode} style={{ backgroundColor: "#4CAF50" }}>
-            Generate New
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={generateQRCode}
+            style={{ backgroundColor: "#4CAF50" }}
+            disabled={loading}
+          >
+            {loading ? "Generating..." : "Generate New"}
           </Button>
           <Button
             variant="outlined"
@@ -149,6 +207,12 @@ const QRCodeGenerator = () => {
           <Typography variant="body2" color="text.secondary">
             Scan this QR code with the mobile app to mark attendance
           </Typography>
+
+          {currentAdmin && (
+            <Typography variant="body2" color="text.secondary">
+              Admin: {currentAdmin.name || currentAdmin.id}
+            </Typography>
+          )}
 
           <Typography variant="body1" color="primary" sx={{ fontWeight: "bold" }}>
             Expires in: {formatCountdown()}
