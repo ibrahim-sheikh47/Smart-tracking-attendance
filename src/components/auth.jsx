@@ -3,6 +3,7 @@ import { useState } from "react";
 import { auth, firestoreDb } from "../config/firebase.jsx";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import assets from "../constants/assets.jsx";
 
 export const Auth = () => {
   const [email, setEmail] = useState("");
@@ -56,7 +57,7 @@ export const Auth = () => {
       await signInWithEmailAndPassword(auth, email, password);
 
       // Store the admin ID in sessionStorage
-      sessionStorage.setItem('adminId', adminDoc.id);
+      sessionStorage.setItem("adminId", adminDoc.id);
 
       // If it's the first login, redirect to settings page
       if (isFirstLogin) {
@@ -64,8 +65,8 @@ export const Auth = () => {
         navigate("/settings", {
           state: {
             isFirstLogin: true,
-            adminId: adminDoc.id
-          }
+            adminId: adminDoc.id,
+          },
         });
       } else {
         // Navigate to dashboard or home page
@@ -200,6 +201,9 @@ export const Auth = () => {
                   }`}
             </button>
           </div>
+        </div>
+        <div>
+          <img src={assets.HocLogoDesc} className="w-[90%]" alt="" />
         </div>
       </div>
     </div>

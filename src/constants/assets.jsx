@@ -13,8 +13,10 @@ import presentIcon from "../assets/icons/presentIcon.svg";
 import leavesIcon from "../assets/icons/leavesIcon.svg";
 import onTimeIcon from "../assets/icons/onTimeIcon.svg";
 import overTimeIcon from "../assets/icons/overTimeIcon.svg";
+import HocLogoDesc from "../assets/images/HOC-logoDesc.png";
 
 export default {
+  HocLogoDesc,
   presentIcon,
   leavesIcon,
   onTimeIcon,
