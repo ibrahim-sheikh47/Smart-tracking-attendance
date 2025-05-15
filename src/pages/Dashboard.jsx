@@ -39,7 +39,11 @@ const Dashboard = () => {
           // Get the admin document
           const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid));
           if (adminDoc.exists()) {
-            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() });
+            setCurrentAdmin({
+              id: adminDoc.id,
+              uid: user.uid,
+              ...adminDoc.data(),
+            });
           } else {
             console.error("Admin document not found");
           }
@@ -61,16 +65,19 @@ const Dashboard = () => {
           // First get all staff members
           const staff = await getAllStaffMembers();
 
-          // Then get all check-ins and check-outs for the table
-          const allCheckIns = await getAllCheckIns();
-          const allCheckOuts = await getAllCheckOuts();
+          // Only proceed with other fetches if we have staff
+          if (staff && staff.length > 0) {
+            // Then get all check-ins and check-outs for the table
+            const allCheckIns = await getAllCheckIns(staff);
+            const allCheckOuts = await getAllCheckOuts(staff);
 
-          // Then get today's check-ins for dashboard stats
-          const todayCheckins = await getTodayCheckIns();
+            // Then get today's check-ins for dashboard stats
+            const todayCheckins = await getTodayCheckIns(staff);
 
-          // Calculate absents and late arrivals based on today's data
-          await calculateAbsentees(staff, todayCheckins);
-          await calculateLateArrivals(todayCheckins);
+            // Calculate absents and late arrivals based on today's data
+            await calculateAbsentees(staff, todayCheckins);
+            await calculateLateArrivals(todayCheckins);
+          }
         } catch (error) {
           console.error("Error fetching dashboard data:", error);
         } finally {
@@ -90,27 +97,43 @@ const Dashboard = () => {
   }, [currentAdmin]);
 
   // Get all check-ins for the table
-  const getAllCheckIns = async () => {
+  const getAllCheckIns = async (staffMembers = null) => {
     try {
       if (!currentAdmin) return [];
 
+      // Use provided staff list or get it if not provided
+      const staff = staffMembers || staffList;
+
+      // Create a Set of employee IDs for faster lookup
+      const employeeIdSet = new Set(staff.map((employee) => employee.uid));
+      console.log("Employee IDs Set:", Array.from(employeeIdSet));
+
       // Create query for all check-ins
       const checkInsRef = collection(firestoreDb, "CheckIns");
-
-      // Get employee IDs for this admin
-      const employeeIds = staffList.map(staff => staff.uid);
-
-      // Get all check-ins for employees of this admin
       const data = await getDocs(checkInsRef);
-      const allCheckIns = data.docs
-        .map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-          employeeId: doc.data().employeeId || doc.id,
-        }))
-        .filter(checkIn => employeeIds.includes(checkIn.employeeId));
 
-      console.log(`Fetched ${allCheckIns.length} total check-ins`);
+      const allCheckIns = data.docs
+        .map((doc) => {
+          const checkInData = doc.data();
+          return {
+            ...checkInData,
+            id: doc.id,
+            employeeId: checkInData.employeeId || "",
+          };
+        })
+        .filter((checkIn) => {
+          const belongs = employeeIdSet.has(checkIn.employeeId);
+          if (!belongs && checkIn.employeeId) {
+            console.log(
+              `CheckIn ${checkIn.id} with employeeId ${checkIn.employeeId} doesn't match any staff member`
+            );
+          }
+          return belongs;
+        });
+
+      console.log(
+        `Fetched ${allCheckIns.length} total check-ins out of ${data.docs.length} documents`
+      );
 
       // Log the structure of the first check-in to help debug
       if (allCheckIns.length > 0) {
@@ -146,9 +169,15 @@ const Dashboard = () => {
   };
 
   // Get today's check-ins for dashboard stats
-  const getTodayCheckIns = async () => {
+  const getTodayCheckIns = async (staffMembers = null) => {
     try {
       if (!currentAdmin) return [];
+
+      // Use provided staff list or get it if not provided
+      const staff = staffMembers || staffList;
+
+      // Create a Set of employee IDs for faster lookup
+      const employeeIdSet = new Set(staff.map((employee) => employee.uid));
 
       // Get today's date at midnight
       const today = new Date();
@@ -159,20 +188,23 @@ const Dashboard = () => {
       const checkInsRef = collection(firestoreDb, "CheckIns");
       const q = query(checkInsRef, where("checkInTime", ">=", todayTimestamp));
 
-      // Get employee IDs for this admin
-      const employeeIds = staffList.map(staff => staff.uid);
-
       // Get today's check-ins
       const data = await getDocs(q);
-      const todayCheckIns = data.docs
-        .map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-          employeeId: doc.data().employeeId || doc.id,
-        }))
-        .filter(checkIn => employeeIds.includes(checkIn.employeeId));
 
-      console.log(`Fetched ${todayCheckIns.length} check-ins for today`);
+      const todayCheckIns = data.docs
+        .map((doc) => {
+          const checkInData = doc.data();
+          return {
+            ...checkInData,
+            id: doc.id,
+            employeeId: checkInData.employeeId || "",
+          };
+        })
+        .filter((checkIn) => employeeIdSet.has(checkIn.employeeId));
+
+      console.log(
+        `Fetched ${todayCheckIns.length} check-ins for today out of ${data.docs.length} documents`
+      );
 
       // Log each check-in for today to debug
       todayCheckIns.forEach((checkIn) => {
@@ -193,27 +225,34 @@ const Dashboard = () => {
   };
 
   // Get all check-outs for the table
-  const getAllCheckOuts = async () => {
+  const getAllCheckOuts = async (staffMembers = null) => {
     try {
       if (!currentAdmin) return [];
 
+      // Use provided staff list or get it if not provided
+      const staff = staffMembers || staffList;
+
+      // Create a Set of employee IDs for faster lookup
+      const employeeIdSet = new Set(staff.map((employee) => employee.uid));
+
       // Create query for all check-outs
       const checkOutsRef = collection(firestoreDb, "CheckOuts");
-
-      // Get employee IDs for this admin
-      const employeeIds = staffList.map(staff => staff.uid);
-
-      // Get all check-outs
       const data = await getDocs(checkOutsRef);
-      const allCheckOuts = data.docs
-        .map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-          employeeId: doc.data().employeeId || doc.id,
-        }))
-        .filter(checkOut => employeeIds.includes(checkOut.employeeId));
 
-      console.log(`Fetched ${allCheckOuts.length} total check-outs`);
+      const allCheckOuts = data.docs
+        .map((doc) => {
+          const checkOutData = doc.data();
+          return {
+            ...checkOutData,
+            id: doc.id,
+            employeeId: checkOutData.employeeId || "",
+          };
+        })
+        .filter((checkOut) => employeeIdSet.has(checkOut.employeeId));
+
+      console.log(
+        `Fetched ${allCheckOuts.length} total check-outs out of ${data.docs.length} documents`
+      );
 
       // Log the structure of the first check-out to help debug
       if (allCheckOuts.length > 0) {
@@ -253,7 +292,12 @@ const Dashboard = () => {
       if (!currentAdmin) return [];
 
       // Get employees from the admin's subcollection
-      const staffRef = collection(firestoreDb, "admins", currentAdmin.uid, "employees");
+      const staffRef = collection(
+        firestoreDb,
+        "admins",
+        currentAdmin.uid,
+        "employees"
+      );
       const data = await getDocs(staffRef);
 
       const filteredStaff = data.docs.map((staffDoc) => {
@@ -266,9 +310,11 @@ const Dashboard = () => {
         };
       });
 
-      console.log(`Fetched ${filteredStaff.length} staff members for admin ${currentAdmin.uid}`);
+      console.log(
+        `Fetched ${filteredStaff.length} staff members for admin ${currentAdmin.uid}`
+      );
 
-      // Log each staff member to debug
+      // Log each staff member for debugging
       filteredStaff.forEach((staff) => {
         console.log(
           `Staff member: ${staff.firstName} ${staff.lastName}, ID: ${staff.uid}, Admin: ${staff.adminId}`
@@ -289,13 +335,15 @@ const Dashboard = () => {
       const allStaff = staff || (await getAllStaffMembers());
       const todayAttendance = todayCheckins || (await getTodayCheckIns());
 
-      // Get IDs of staff who checked in today
-      const checkedInIds = todayAttendance.map((record) => record.employeeId);
-      console.log("Staff who checked in today:", checkedInIds);
+      // Create a Set of checked-in employee IDs for faster lookup
+      const checkedInIdsSet = new Set(
+        todayAttendance.map((record) => record.employeeId)
+      );
+      console.log("Staff who checked in today:", Array.from(checkedInIdsSet));
 
       // Filter staff who haven't checked in today
       const absentStaff = allStaff.filter(
-        (staff) => !checkedInIds.includes(staff.uid)
+        (staff) => !checkedInIdsSet.has(staff.uid)
       );
 
       // Log each absent staff member to debug
@@ -339,7 +387,10 @@ const Dashboard = () => {
             checkInDate.getFullYear(),
             checkInDate.getMonth(),
             checkInDate.getDate(),
-            9, 0, 1, 0  // 9:00:01 AM cutoff (1 second after 9:00 AM)
+            9,
+            0,
+            1,
+            0 // 9:00:01 AM cutoff (1 second after 9:00 AM)
           );
 
           // Early morning cutoff (before 5:00 AM is considered late)
@@ -347,18 +398,24 @@ const Dashboard = () => {
             checkInDate.getFullYear(),
             checkInDate.getMonth(),
             checkInDate.getDate(),
-            5, 0, 0, 0  // 5:00 AM cutoff for early morning
+            5,
+            0,
+            0,
+            0 // 5:00 AM cutoff for early morning
           );
 
           // Consider late if:
           // 1. Check-in is after 9:00:01 AM (allowing exactly 9:00:00 AM to be on time), or
           // 2. Check-in is before 5:00 AM (very early morning is considered late)
-          const isLate = checkInTime > cutoffTime || checkInTime < earlyMorningCutoff;
+          const isLate =
+            checkInTime > cutoffTime || checkInTime < earlyMorningCutoff;
 
           // Log for debugging
           console.log(
-            `Employee ${record.employeeId} check-in: ${checkInTime.toLocaleTimeString()}, ` +
-            `cutoff: ${cutoffTime.toLocaleTimeString()}, isLate: ${isLate}`
+            `Employee ${
+              record.employeeId
+            } check-in: ${checkInTime.toLocaleTimeString()}, ` +
+              `cutoff: ${cutoffTime.toLocaleTimeString()}, isLate: ${isLate}`
           );
 
           return isLate;

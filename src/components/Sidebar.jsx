@@ -67,7 +67,7 @@ const Sidebar = ({ userRole }) => {
         },
       }}
     >
-      <div className="border-b border-gray-200 mb-4">
+      <div className="mb-4">
         <Typography variant="h6" className="text-gray-800 font-medium">
           K.M.C Smart Tracking
         </Typography>
@@ -75,8 +75,8 @@ const Sidebar = ({ userRole }) => {
           Home of Computer Solutions
         </Typography>
         {userRole && (
-          <div className="mt-2 text-xs">
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+          <div className="mt-5 text-sm">
+            <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full">
               {userRole === "superadmin" ? "Super Admin" : "Admin"}
             </span>
           </div>
