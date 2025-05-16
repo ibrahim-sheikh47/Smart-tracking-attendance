@@ -3,6 +3,8 @@ import { useState } from "react";
 import { auth, firestoreDb } from "../config/firebase.jsx";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import assets from "../constants/assets.jsx";
 
 export const Auth = () => {
@@ -11,6 +13,7 @@ export const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [loginMode, setLoginMode] = useState("superadmin");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const validateCredentials = async () => {
@@ -35,6 +38,15 @@ export const Auth = () => {
       const adminData = adminDoc.data();
       const isSuper = adminData.isSuper === true;
       const isFirstLogin = adminData.isFirstLogin === true;
+      const isPasswordSet = adminData.isPasswordSet === true; // Ensure explicit boolean comparison
+
+      console.log("Admin login data:", {
+        email,
+        isSuper,
+        isFirstLogin,
+        isPasswordSet,
+        adminId: adminDoc.id,
+      });
 
       // Check if the login mode matches the admin type
       if (loginMode === "admin" && isSuper) {
@@ -56,8 +68,26 @@ export const Auth = () => {
       // If we've passed all checks, now attempt to sign in
       await signInWithEmailAndPassword(auth, email, password);
 
-      // Store the admin ID in sessionStorage
+      // Store the admin ID, password status, and isSuper status in sessionStorage
       sessionStorage.setItem("adminId", adminDoc.id);
+      sessionStorage.setItem("passwordNeedsChange", isPasswordSet === false);
+      sessionStorage.setItem("isSuper", isSuper);
+
+      console.log("Password set status:", isPasswordSet);
+
+      // If password needs to be changed, redirect to password change page
+      // If password needs to be changed AND the user is NOT a super admin
+      if (isPasswordSet === false && !isSuper) {
+        alert("Password not set, redirecting to change password page");
+        navigate("/change-pass", {
+          state: {
+            adminId: adminDoc.id,
+            isPasswordReset: true,
+          },
+        });
+        setLoading(false);
+        return;
+      }
 
       // If it's the first login, redirect to settings page
       if (isFirstLogin) {
@@ -97,15 +127,20 @@ export const Auth = () => {
     }
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-2xl space-y-20 bg-white p-8 rounded-lg shadow-md">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 py-4 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-            Administration Login
+          <img src={assets.HocLogo} className="mx-auto h-48" alt="HOC Logo" />
+          <h2 className="my-2 text-center text-3xl font-bold tracking-tight text-gray-900">
+            KMC DAILY PAY
           </h2>
 
-          <div className="flex justify-center mt-4 space-x-4">
+          <div className="flex justify-center my-6 space-x-6">
             <button
               onClick={() => setLoginMode("superadmin")}
               className={`px-4 py-2 rounded-md font-medium text-sm transition-colors cursor-pointer ${
@@ -128,7 +163,7 @@ export const Auth = () => {
             </button>
           </div>
 
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p className="my-4 text-center text-sm text-gray-600">
             {loginMode === "admin"
               ? "Sign in to access the admin dashboard"
               : "Sign in to manage admin accounts"}
@@ -141,7 +176,7 @@ export const Auth = () => {
           </div>
         )}
 
-        <div className="mt-8 space-y-6">
+        <div className="mt-2 space-y-5">
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
               <label htmlFor="email" className="sr-only">
@@ -158,14 +193,14 @@ export const Auth = () => {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div>
+            <div className="relative">
               <label htmlFor="password" className="sr-only">
                 Password
               </label>
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 required
                 className="relative block w-full rounded-md border-0 py-2 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
@@ -177,6 +212,21 @@ export const Auth = () => {
                   }
                 }}
               />
+              <button
+                type="button"
+                onClick={togglePasswordVisibility}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 cursor-pointer"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <VisibilityIcon fontSize="small" className="text-gray-500" />
+                ) : (
+                  <VisibilityOffIcon
+                    fontSize="small"
+                    className="text-gray-500"
+                  />
+                )}
+              </button>
             </div>
           </div>
 
@@ -202,8 +252,8 @@ export const Auth = () => {
             </button>
           </div>
         </div>
-        <div>
-          <img src={assets.HocLogoDesc} className="w-[90%]" alt="" />
+        <div className="mt-10">
+          <img src={assets.HocLogoDesc} className="w-[70%]" alt="" />
         </div>
       </div>
     </div>

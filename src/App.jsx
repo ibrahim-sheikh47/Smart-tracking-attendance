@@ -21,11 +21,13 @@ import AttendanceHistory from "./pages/Reports/AttendanceHistory";
 import Payroll from "./pages/Payroll/Payroll";
 import PayrollDetails from "./pages/Payroll/PayrollDetails";
 import SettingsPage from "./pages/Settings/Settings.jsx";
+import ChangePassword from "./pages/ChangePassword.jsx";
 
 function App() {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [passwordNeedsChange, setPasswordNeedsChange] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -43,6 +45,17 @@ function App() {
             const role = adminData.isSuper ? "superadmin" : "admin";
             setUserRole(role);
             console.log("User authenticated with role:", role);
+
+            // Check if the password needs to be changed
+            if (adminData.isPasswordSet === false) {
+              console.log("Password change needed:", true);
+              sessionStorage.setItem("passwordNeedsChange", "true");
+              sessionStorage.setItem("adminId", user.uid);
+              setPasswordNeedsChange(true);
+            } else {
+              sessionStorage.removeItem("passwordNeedsChange");
+              setPasswordNeedsChange(false);
+            }
           } else {
             // Check if user is an employee
             const employeeDocRef = doc(firestoreDb, "employees", user.uid);
@@ -50,6 +63,8 @@ function App() {
 
             if (employeeDocSnap.exists()) {
               setUserRole("employee");
+              sessionStorage.removeItem("passwordNeedsChange");
+              setPasswordNeedsChange(false);
             } else {
               // User not found in any collection
               setUserRole("unknown");
@@ -66,11 +81,40 @@ function App() {
       } else {
         setUser(null);
         setUserRole(null);
+        setPasswordNeedsChange(false);
+        sessionStorage.removeItem("passwordNeedsChange");
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Effect to check session storage for password change flag
+  useEffect(() => {
+    const checkPasswordChangeStatus = () => {
+      const needsChange =
+        sessionStorage.getItem("passwordNeedsChange") === "true";
+      setPasswordNeedsChange(needsChange);
+      console.log("Password needs change status updated:", needsChange);
+    };
+
+    // Initial check
+    checkPasswordChangeStatus();
+
+    // Set up event listener for storage changes
+    window.addEventListener("storage", checkPasswordChangeStatus);
+
+    // Custom event listener for our app
+    const handlePasswordChangeEvent = () => {
+      checkPasswordChangeStatus();
+    };
+    window.addEventListener("passwordChanged", handlePasswordChangeEvent);
+
+    return () => {
+      window.removeEventListener("storage", checkPasswordChangeStatus);
+      window.removeEventListener("passwordChanged", handlePasswordChangeEvent);
+    };
   }, []);
 
   if (loading)
@@ -83,39 +127,95 @@ function App() {
   return (
     <Router>
       {user ? (
-        userRole === "employee" ? (
+        passwordNeedsChange ? (
+          // If password needs change, render ChangePassword component directly
+          <Routes>
+            <Route
+              path="/settings/change-pass"
+              element={
+                <ChangePassword
+                  onPasswordChanged={() => {
+                    setPasswordNeedsChange(false);
+                    // Dispatch custom event
+                    window.dispatchEvent(new Event("passwordChanged"));
+                  }}
+                />
+              }
+            />
+            <Route
+              path="*"
+              element={<Navigate to="/settings/change-pass" replace />}
+            />
+          </Routes>
+        ) : userRole === "employee" ? (
           <div className="text-center mt-32 text-xl text-red-600">
             Unauthorized Access. Contact Admin.
           </div>
         ) : (
           <Layout userRole={userRole}>
             <Routes>
+              {/* Common routes for both admin types */}
+              <Route
+                path="/settings/change-pass"
+                element={
+                  <ChangePassword
+                    onPasswordChanged={() => {
+                      setPasswordNeedsChange(false);
+                    }}
+                  />
+                }
+              />
+
               {/* Routes accessible to admins */}
               {userRole === "admin" && (
                 <>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/manage-staff" element={<ManageStaff />} />
-                  <Route path="/manage-staff/AddNewStaff" element={<AddNewStaff />} />
+                  <Route
+                    path="/manage-staff/AddNewStaff"
+                    element={<AddNewStaff />}
+                  />
                   <Route path="/payroll" element={<Payroll />} />
-                  <Route path="/payroll/payroll-detail/:id" element={<PayrollDetails />} />
+                  <Route
+                    path="/payroll/payroll-detail/:id"
+                    element={<PayrollDetails />}
+                  />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/reports" element={<Reports />} />
-                  <Route path="/reports/:employeeId/history" element={<AttendanceHistory />} />
+                  <Route
+                    path="/reports/:employeeId/history"
+                    element={<AttendanceHistory />}
+                  />
                 </>
               )}
 
               {/* Routes accessible only to super admins */}
               {userRole === "superadmin" && (
                 <>
-                  <Route path="/admin-management" element={<AdminManagement />} />
-                  <Route path="/admin-management/add-new-admin" element={<AddNewAdmin />} />
+                  <Route
+                    path="/admin-management"
+                    element={<AdminManagement />}
+                  />
+                  <Route
+                    path="/admin-management/add-new-admin"
+                    element={<AddNewAdmin />}
+                  />
                   <Route path="/manage-staff" element={<ManageStaff />} />
-                  <Route path="/manage-staff/AddNewStaff" element={<AddNewStaff />} />
+                  <Route
+                    path="/manage-staff/AddNewStaff"
+                    element={<AddNewStaff />}
+                  />
                   <Route path="/payroll" element={<Payroll />} />
-                  <Route path="/payroll/payroll-detail/:id" element={<PayrollDetails />} />
+                  <Route
+                    path="/payroll/payroll-detail/:id"
+                    element={<PayrollDetails />}
+                  />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/reports" element={<Reports />} />
-                  <Route path="/reports/:employeeId/history" element={<AttendanceHistory />} />
+                  <Route
+                    path="/reports/:employeeId/history"
+                    element={<AttendanceHistory />}
+                  />
                   {/* Removed dashboard route for superadmin */}
                 </>
               )}

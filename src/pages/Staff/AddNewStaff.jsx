@@ -233,6 +233,9 @@ const AddNewStaff = () => {
         createdAt: new Date(),
         // Add the admin's ID who is creating this employee
         adminId: currentUser.uid,
+        // Add isPasswordSet field set to false for new employees
+        isPasswordSet: false,
+        passwordLastChanged: null,
       }
 
       // Call the Cloud Function to create the employee
@@ -319,7 +322,9 @@ const AddNewStaff = () => {
 
       {submitSuccess && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mt-4">
-          <span className="block sm:inline">Employee added successfully with QR code!</span>
+          <span className="block sm:inline">
+            Employee added successfully with QR code! Employee has been created with a default password.
+          </span>
         </div>
       )}
 
@@ -406,6 +411,13 @@ const AddNewStaff = () => {
               required
             />
           </div>
+        </div>
+
+        <div className="mt-2 text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+          <p className="text-sm">
+            <strong>Note:</strong> New employees will be created with a default password.
+            They will need to change it on their first login.
+          </p>
         </div>
 
         <h1 className="text-xl font-semibold mt-10">Job & Salary Info</h1>

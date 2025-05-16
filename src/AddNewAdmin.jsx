@@ -61,6 +61,7 @@ const AddNewAdmin = () => {
       confirmPassword: "12345678",
       role: "admin", // Default role
       phoneNumber: "",
+      isPasswordSet: false, // Default value for new admins
     },
   });
 
@@ -68,7 +69,6 @@ const AddNewAdmin = () => {
   // Role options
   const roleOptions = [
     { value: "admin", label: "Admin" },
-    { value: "superadmin", label: "Super Admin" },
   ];
 
   // Handle form submission
@@ -85,6 +85,7 @@ const AddNewAdmin = () => {
         password: data.password,
         phoneNumber: data.phoneNumber,
         isSuper: data.role === "superadmin",
+        isPasswordSet: false, // Explicitly set this to false for new admins
       };
 
       // Call the Cloud Function to create the admin
@@ -132,7 +133,6 @@ const AddNewAdmin = () => {
           />
         </div>
       </div>
-
       {submitSuccess && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mt-4">
           <span className="block sm:inline">Admin created successfully!</span>
@@ -216,6 +216,11 @@ const AddNewAdmin = () => {
               required
               options={roleOptions}
             />
+          </div>
+          <div className="flex-1">
+            <p className="text-gray-600 text-sm mt-2">
+              <span className="font-medium">Note:</span> New admins will be required to change their default password on first login.
+            </p>
           </div>
         </div>
       </form>

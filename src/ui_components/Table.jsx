@@ -393,12 +393,10 @@ const EmployeeTable = ({
       </div>
 
       <div className="flex items-center gap-2 my-7">
-        <h4 className="text-lg font-semibold">
-          Latest Employees Attendance
-        </h4>
-        <Chip className="text-end ml-auto" color="warning" label="Late"/>
+        <h4 className="text-lg font-semibold">Latest Employees Attendance</h4>
+        <Chip className="text-end ml-auto" color="warning" label="Late" />
 
-        <Chip className="text-end" color="success" label="On Time"/>
+        <Chip className="text-end" color="success" label="On Time" />
       </div>
       <TableContainer component={Paper}>
         <Table sx={{ minWidth: 650 }} aria-label="employee table">
