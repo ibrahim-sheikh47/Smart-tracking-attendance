@@ -93,20 +93,13 @@ const PayrollDetail = () => {
     try {
       setLoading(true);
 
-      // Verify the admin has access to this employee
-      if (adminId && adminId !== currentAdmin.id) {
-        setError("You don't have permission to view this employee's payroll");
-        setLoading(false);
-        return;
-      }
-
       // Fetch employee basic info from the main employees collection
       const employeeDocRef = doc(firestoreDb, "employees", employeeId);
       const employeeSnapshot = await getDoc(employeeDocRef);
 
       if (!employeeSnapshot.exists()) {
         setError(
-          "Employee not found or you don't have permission to view this employee"
+            "Employee not found"
         );
         setLoading(false);
         return;
@@ -114,26 +107,19 @@ const PayrollDetail = () => {
 
       const employeeData = employeeSnapshot.data();
 
-      // Verify this admin has access to this employee
-      if (employeeData.adminId !== currentAdmin.id) {
-        setError("You don't have permission to view this employee's payroll");
-        setLoading(false);
-        return;
-      }
-
       // Fetch check-ins for this employee
       const checkInsRef = collection(firestoreDb, "CheckIns");
       const checkInsQuery = query(
-        checkInsRef,
-        where("employeeId", "==", employeeId)
+          checkInsRef,
+          where("employeeId", "==", employeeId)
       );
       const checkInsSnapshot = await getDocs(checkInsQuery);
 
       // Fetch check-outs for this employee
       const checkOutsRef = collection(firestoreDb, "CheckOuts");
       const checkOutsQuery = query(
-        checkOutsRef,
-        where("employeeId", "==", employeeId)
+          checkOutsRef,
+          where("employeeId", "==", employeeId)
       );
       const checkOutsSnapshot = await getDocs(checkOutsQuery);
 
@@ -189,13 +175,13 @@ const PayrollDetail = () => {
       // Match check-ins with check-outs by sessionId
       checkIns.forEach((checkIn) => {
         const matchingCheckOut = checkOuts.find(
-          (checkOut) => checkOut.sessionId === checkIn.sessionId
+            (checkOut) => checkOut.sessionId === checkIn.sessionId
         );
 
         if (matchingCheckOut) {
           const workingMinutes = differenceInMinutes(
-            matchingCheckOut.time,
-            checkIn.time
+              matchingCheckOut.time,
+              checkIn.time
           );
 
           if (workingMinutes > 0) {
@@ -220,7 +206,7 @@ const PayrollDetail = () => {
       // Check if employee is present today
       const today = format(new Date(), "yyyy-MM-dd");
       const isTodayPresent = checkIns.some(
-        (checkIn) => format(checkIn.time, "yyyy-MM-dd") === today
+          (checkIn) => format(checkIn.time, "yyyy-MM-dd") === today
       );
 
       // Calculate compensation
@@ -242,7 +228,7 @@ const PayrollDetail = () => {
       const formattedEmployee = {
         id: employeeId,
         name: `${employeeData.firstName || ""} ${
-          employeeData.lastName || ""
+            employeeData.lastName || ""
         }`.trim(),
         title: employeeData.jobTitle || employeeData.title || "Employee",
         avatar: employeeData.photoURL || "",
@@ -253,9 +239,9 @@ const PayrollDetail = () => {
         totalHours: `${hoursPerMonth} hours`,
         workingHours: `${totalWorkingHours} hours ${remainingWorkingMinutes} mins`,
         overTime:
-          totalOvertimeMinutes > 0
-            ? `${totalOvertimeHours} hours ${remainingOvertimeMinutes} mins`
-            : "0 hours",
+            totalOvertimeMinutes > 0
+                ? `${totalOvertimeHours} hours ${remainingOvertimeMinutes} mins`
+                : "0 hours",
         hourlyRate: `D ${hourlyRate.toFixed(2)}`,
         salary: `D ${totalPay.toFixed(2)}`,
         totalCompensation: `D ${regularPay.toFixed(2)}`,
@@ -271,10 +257,10 @@ const PayrollDetail = () => {
           hoursPerWeek: `${(totalOvertimeHours / 4).toFixed(1)} hours`,
           hoursPerMonth: `${totalOvertimeHours.toFixed(1)} hours`,
           calculation: `${hourlyRate.toFixed(
-            2
+              2
           )} x 1.5 x ${totalOvertimeHours.toFixed(2)}`,
         },
-        adminId: currentAdmin.id,
+        adminId: employeeData.adminId,
       };
 
       setEmployee(formattedEmployee);
@@ -292,339 +278,339 @@ const PayrollDetail = () => {
     if (!name) return "";
     const parts = name.split(" ");
     return `${parts[0]?.charAt(0) || ""}${
-      parts[1]?.charAt(0) || ""
+        parts[1]?.charAt(0) || ""
     }`.toUpperCase();
   };
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          p: 3,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "70vh",
-        }}
-      >
-        <CircularProgress />
-      </Box>
+        <Box
+            sx={{
+              p: 3,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "70vh",
+            }}
+        >
+          <CircularProgress />
+        </Box>
     );
   }
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-        <Box sx={{ mt: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<ChevronLeft />}
-            onClick={() => navigate("/payroll")}
-          >
-            Back to Payroll
-          </Button>
+        <Box sx={{ p: 3 }}>
+          <Alert severity="error">{error}</Alert>
+          <Box sx={{ mt: 2 }}>
+            <Button
+                variant="outlined"
+                startIcon={<ChevronLeft />}
+                onClick={() => navigate("/payroll")}
+            >
+              Back to Payroll
+            </Button>
+          </Box>
         </Box>
-      </Box>
     );
   }
 
   if (!employee) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="warning">No employee data found.</Alert>
-        <Box sx={{ mt: 2 }}>
-          <IconButton onClick={() => navigate("/payroll")}>
-            <ChevronLeft /> Back to Payroll
-          </IconButton>
+        <Box sx={{ p: 3 }}>
+          <Alert severity="warning">No employee data found.</Alert>
+          <Box sx={{ mt: 2 }}>
+            <IconButton onClick={() => navigate("/payroll")}>
+              <ChevronLeft /> Back to Payroll
+            </IconButton>
+          </Box>
         </Box>
-      </Box>
     );
   }
 
   return (
-    <Box sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
-      <Paper sx={{ p: 3, borderRadius: 2 }}>
-        {/* Header with Back Button and Export */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 3,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <IconButton onClick={() => navigate("/payroll")} sx={{ mr: 1 }}>
-              <ChevronLeft />
-            </IconButton>
+      <Box sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
+          {/* Header with Back Button and Export */}
+          <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 3,
+              }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <IconButton onClick={() => navigate("/payroll")} sx={{ mr: 1 }}>
+                <ChevronLeft />
+              </IconButton>
+              <Box>
+                <Typography variant="h6" fontWeight="bold">
+                  {employee.name}
+                </Typography>
+              </Box>
+            </Box>
+            <CustomButton
+                title={"Export"}
+                style={"text-white w-[110px] h-[40px]"}
+            />
+          </Box>
+
+          {/* Employee Profile */}
+          <Box
+              sx={{
+                mb: 4,
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { sm: "center" },
+                gap: 3,
+                backgroundColor: "#F9F9F9",
+                padding: 3,
+                borderRadius: 3,
+              }}
+          >
+            {employee.avatar ? (
+                <Avatar
+                    src={employee.avatar}
+                    sx={{
+                      width: 120,
+                      height: 120,
+                      border: "3px solid #f5f5f5",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      borderRadius: 3,
+                    }}
+                />
+            ) : (
+                <Avatar
+                    sx={{
+                      width: 120,
+                      height: 120,
+                      border: "3px solid #f5f5f5",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      borderRadius: 3,
+                      bgcolor: "#3DC296",
+                      fontSize: 48,
+                    }}
+                >
+                  {getInitials(employee.name)}
+                </Avatar>
+            )}
             <Box>
-              <Typography variant="h6" fontWeight="bold">
+              <Typography variant="h5" fontWeight="bold">
                 {employee.name}
               </Typography>
-            </Box>
-          </Box>
-          <CustomButton
-            title={"Export"}
-            style={"text-white w-[110px] h-[40px]"}
-          />
-        </Box>
-
-        {/* Employee Profile */}
-        <Box
-          sx={{
-            mb: 4,
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            alignItems: { sm: "center" },
-            gap: 3,
-            backgroundColor: "#F9F9F9",
-            padding: 3,
-            borderRadius: 3,
-          }}
-        >
-          {employee.avatar ? (
-            <Avatar
-              src={employee.avatar}
-              sx={{
-                width: 120,
-                height: 120,
-                border: "3px solid #f5f5f5",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                borderRadius: 3,
-              }}
-            />
-          ) : (
-            <Avatar
-              sx={{
-                width: 120,
-                height: 120,
-                border: "3px solid #f5f5f5",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                borderRadius: 3,
-                bgcolor: "#3DC296",
-                fontSize: 48,
-              }}
-            >
-              {getInitials(employee.name)}
-            </Avatar>
-          )}
-          <Box>
-            <Typography variant="h5" fontWeight="bold">
-              {employee.name}
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-              {employee.title}
-            </Typography>
-
-            <div className="flex flex-wrap gap-6 md:gap-20">
-              <div className="">
-                <p className="text-sm text-gray-500">Status</p>
-                <p className="font-medium">{employee.status}</p>
-              </div>
-              <div className="">
-                <p className="text-sm text-gray-500">Email</p>
-                <p className="font-medium">{employee.email}</p>
-              </div>
-              <div className="">
-                <p className="text-sm text-gray-500">Department</p>
-                <p className="font-medium">{employee.department}</p>
-              </div>
-              <div className="">
-                <p className="text-sm text-gray-500">Phone</p>
-                <p className="font-medium">{employee.phone}</p>
-              </div>
-            </div>
-          </Box>
-        </Box>
-
-        {/* Hours and Rate Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6 w-full">
-          <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
-            <div className="flex items-center mb-2">
-              <AccessTimeIcon className="text-gray-600 mr-2" fontSize="small" />
-              <p className="text-sm text-gray-500">Total Hours Per Month</p>
-            </div>
-            <p className="text-lg font-bold">{employee.totalHours}</p>
-          </div>
-
-          <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
-            <div className="flex items-center mb-2">
-              <WorkIcon className="text-gray-600 mr-2" fontSize="small" />
-              <p className="text-sm text-gray-500">Working Hours</p>
-            </div>
-            <div className="flex items-center">
-              <p className="text-lg font-bold">{employee.workingHours}</p>
-              <CheckCircleIcon
-                className="text-teal-600 ml-2"
-                fontSize="small"
-              />
-            </div>
-          </div>
-
-          <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
-            <div className="flex items-center mb-2">
-              <ScheduleIcon className="text-gray-600 mr-2" fontSize="small" />
-              <p className="text-sm text-gray-500">Over Time</p>
-            </div>
-            <p className="text-lg font-bold">{employee.overTime}</p>
-          </div>
-
-          <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
-            <div className="flex items-center mb-2">
-              <PaidIcon className="text-gray-600 mr-2" fontSize="small" />
-              <p className="text-sm text-gray-500">Hourly Rate</p>
-            </div>
-            <div className="flex items-center">
-              <p className="text-lg font-bold">{employee.hourlyRate}</p>
-              <CheckCircleIcon
-                className="text-teal-600 ml-2"
-                fontSize="small"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Salary */}
-        <Box
-          sx={{
-            border: "2px solid #3DC296",
-            borderRadius: 2,
-            background: "#3DC29610",
-            p: 2,
-            mb: 3,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Typography sx={{ color: "#00000080" }}>Salary</Typography>
-          <Typography variant="h6" fontWeight="bold">
-            {employee.salary}
-          </Typography>
-        </Box>
-
-        {/* Total Compensation */}
-        <Box sx={{ mb: 2 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              bgcolor: "#f9f9f9",
-              p: 2,
-              borderTopLeftRadius: 8,
-              borderTopRightRadius: 8,
-              cursor: "pointer",
-            }}
-            onClick={() => setTotalCompExpanded(!totalCompExpanded)}
-          >
-            <Typography sx={{ color: "#00000080" }}>
-              Total Compensation
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ mr: 1 }}>
-                {employee.totalCompensation}
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                {employee.title}
               </Typography>
-              {totalCompExpanded ? (
-                <KeyboardArrowUpIcon />
-              ) : (
-                <KeyboardArrowDownIcon />
-              )}
-            </Box>
-          </Box>
-          <Collapse in={totalCompExpanded} timeout="auto" unmountOnExit>
-            <TableContainer
-              component={Paper}
-              elevation={0}
-              sx={{ borderTop: "none" }}
-            >
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Comp/Hour</TableCell>
-                    <TableCell>Hours/wk</TableCell>
-                    <TableCell>Hours/Month</TableCell>
-                    <TableCell>Comp x Hours/Month</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>{employee.compDetails.compPerHour}</TableCell>
-                    <TableCell>{employee.compDetails.hoursPerWeek}</TableCell>
-                    <TableCell>{employee.compDetails.hoursPerMonth}</TableCell>
-                    <TableCell>{employee.compDetails.calculation}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Collapse>
-        </Box>
 
-        {/* Overtime */}
-        <Box sx={{ mb: 2 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              bgcolor: "#f9f9f9",
-              p: 2,
-              borderTopLeftRadius: 8,
-              borderTopRightRadius: 8,
-              cursor: "pointer",
-            }}
-            onClick={() => setOvertimeExpanded(!overtimeExpanded)}
-          >
-            <Typography sx={{ color: "#00000080" }}>Overtime</Typography>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ mr: 1 }}>
-                {employee.overtimePay}
-              </Typography>
-              {overtimeExpanded ? (
-                <KeyboardArrowUpIcon />
-              ) : (
-                <KeyboardArrowDownIcon />
-              )}
+              <div className="flex flex-wrap gap-6 md:gap-20">
+                <div className="">
+                  <p className="text-sm text-gray-500">Status</p>
+                  <p className="font-medium">{employee.status}</p>
+                </div>
+                <div className="">
+                  <p className="text-sm text-gray-500">Email</p>
+                  <p className="font-medium">{employee.email}</p>
+                </div>
+                <div className="">
+                  <p className="text-sm text-gray-500">Department</p>
+                  <p className="font-medium">{employee.department}</p>
+                </div>
+                <div className="">
+                  <p className="text-sm text-gray-500">Phone</p>
+                  <p className="font-medium">{employee.phone}</p>
+                </div>
+              </div>
             </Box>
           </Box>
-          <Collapse in={overtimeExpanded} timeout="auto" unmountOnExit>
-            <TableContainer
-              component={Paper}
-              elevation={0}
-              sx={{ borderTop: "none" }}
+
+          {/* Hours and Rate Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6 w-full">
+            <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
+              <div className="flex items-center mb-2">
+                <AccessTimeIcon className="text-gray-600 mr-2" fontSize="small" />
+                <p className="text-sm text-gray-500">Total Hours Per Month</p>
+              </div>
+              <p className="text-lg font-bold">{employee.totalHours}</p>
+            </div>
+
+            <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
+              <div className="flex items-center mb-2">
+                <WorkIcon className="text-gray-600 mr-2" fontSize="small" />
+                <p className="text-sm text-gray-500">Working Hours</p>
+              </div>
+              <div className="flex items-center">
+                <p className="text-lg font-bold">{employee.workingHours}</p>
+                <CheckCircleIcon
+                    className="text-teal-600 ml-2"
+                    fontSize="small"
+                />
+              </div>
+            </div>
+
+            <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
+              <div className="flex items-center mb-2">
+                <ScheduleIcon className="text-gray-600 mr-2" fontSize="small" />
+                <p className="text-sm text-gray-500">Over Time</p>
+              </div>
+              <p className="text-lg font-bold">{employee.overTime}</p>
+            </div>
+
+            <div className="bg-gray-100 p-4 shadow-sm rounded-md h-full">
+              <div className="flex items-center mb-2">
+                <PaidIcon className="text-gray-600 mr-2" fontSize="small" />
+                <p className="text-sm text-gray-500">Hourly Rate</p>
+              </div>
+              <div className="flex items-center">
+                <p className="text-lg font-bold">{employee.hourlyRate}</p>
+                <CheckCircleIcon
+                    className="text-teal-600 ml-2"
+                    fontSize="small"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Salary */}
+          <Box
+              sx={{
+                border: "2px solid #3DC296",
+                borderRadius: 2,
+                background: "#3DC29610",
+                p: 2,
+                mb: 3,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+          >
+            <Typography sx={{ color: "#00000080" }}>Salary</Typography>
+            <Typography variant="h6" fontWeight="bold">
+              {employee.salary}
+            </Typography>
+          </Box>
+
+          {/* Total Compensation */}
+          <Box sx={{ mb: 2 }}>
+            <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f9f9f9",
+                  p: 2,
+                  borderTopLeftRadius: 8,
+                  borderTopRightRadius: 8,
+                  cursor: "pointer",
+                }}
+                onClick={() => setTotalCompExpanded(!totalCompExpanded)}
             >
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Comp/Hour</TableCell>
-                    <TableCell>Hours/wk</TableCell>
-                    <TableCell>Hours/Month</TableCell>
-                    <TableCell>Comp x Hours/Month</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>
-                      {employee.overtimeDetails.compPerHour}
-                    </TableCell>
-                    <TableCell>
-                      {employee.overtimeDetails.hoursPerWeek}
-                    </TableCell>
-                    <TableCell>
-                      {employee.overtimeDetails.hoursPerMonth}
-                    </TableCell>
-                    <TableCell>
-                      {employee.overtimeDetails.calculation}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Collapse>
-        </Box>
-      </Paper>
-    </Box>
+              <Typography sx={{ color: "#00000080" }}>
+                Total Compensation
+              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mr: 1 }}>
+                  {employee.totalCompensation}
+                </Typography>
+                {totalCompExpanded ? (
+                    <KeyboardArrowUpIcon />
+                ) : (
+                    <KeyboardArrowDownIcon />
+                )}
+              </Box>
+            </Box>
+            <Collapse in={totalCompExpanded} timeout="auto" unmountOnExit>
+              <TableContainer
+                  component={Paper}
+                  elevation={0}
+                  sx={{ borderTop: "none" }}
+              >
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Comp/Hour</TableCell>
+                      <TableCell>Hours/wk</TableCell>
+                      <TableCell>Hours/Month</TableCell>
+                      <TableCell>Comp x Hours/Month</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>{employee.compDetails.compPerHour}</TableCell>
+                      <TableCell>{employee.compDetails.hoursPerWeek}</TableCell>
+                      <TableCell>{employee.compDetails.hoursPerMonth}</TableCell>
+                      <TableCell>{employee.compDetails.calculation}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Collapse>
+          </Box>
+
+          {/* Overtime */}
+          <Box sx={{ mb: 2 }}>
+            <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f9f9f9",
+                  p: 2,
+                  borderTopLeftRadius: 8,
+                  borderTopRightRadius: 8,
+                  cursor: "pointer",
+                }}
+                onClick={() => setOvertimeExpanded(!overtimeExpanded)}
+            >
+              <Typography sx={{ color: "#00000080" }}>Overtime</Typography>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mr: 1 }}>
+                  {employee.overtimePay}
+                </Typography>
+                {overtimeExpanded ? (
+                    <KeyboardArrowUpIcon />
+                ) : (
+                    <KeyboardArrowDownIcon />
+                )}
+              </Box>
+            </Box>
+            <Collapse in={overtimeExpanded} timeout="auto" unmountOnExit>
+              <TableContainer
+                  component={Paper}
+                  elevation={0}
+                  sx={{ borderTop: "none" }}
+              >
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Comp/Hour</TableCell>
+                      <TableCell>Hours/wk</TableCell>
+                      <TableCell>Hours/Month</TableCell>
+                      <TableCell>Comp x Hours/Month</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>
+                        {employee.overtimeDetails.compPerHour}
+                      </TableCell>
+                      <TableCell>
+                        {employee.overtimeDetails.hoursPerWeek}
+                      </TableCell>
+                      <TableCell>
+                        {employee.overtimeDetails.hoursPerMonth}
+                      </TableCell>
+                      <TableCell>
+                        {employee.overtimeDetails.calculation}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Collapse>
+          </Box>
+        </Paper>
+      </Box>
   );
 };
 

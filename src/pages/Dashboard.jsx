@@ -16,8 +16,6 @@ import {
 } from "firebase/firestore";
 import EmployeeTable from "../ui_components/Table.jsx";
 import { getAuth } from "firebase/auth";
-// Add the EmployeeModal import at the top of the file
-// Add this line with the other imports
 import EmployeeModal from "../ui_components/EmployeeModal.jsx";
 
 import WeeklyAttendanceChart from "../components/WeeklyAttendanceChart.jsx";
@@ -38,9 +36,7 @@ const Dashboard = () => {
   const [lateArrivals, setLateArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentAdmin, setCurrentAdmin] = useState(null);
-  // Add a new state variable to track which dashboard card is selected
   const [selectedCard, setSelectedCard] = useState(null);
-  // Add a state for the modal
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [filteredEmployees, setFilteredEmployees] = useState([]);
@@ -100,15 +96,15 @@ const Dashboard = () => {
             await calculateLateArrivals(todayCheckins);
 
             const lineChartData = generateAttendanceChartData(
-              allCheckIns,
-              staff,
-              selectedPeriod
+                allCheckIns,
+                staff,
+                selectedPeriod
             );
             setAttendanceChartData(lineChartData);
 
             const barChartData = generateWeeklyAttendanceData(
-              allCheckIns,
-              staff
+                allCheckIns,
+                staff
             );
             setWeeklyAttendanceData(barChartData);
           }
@@ -128,7 +124,7 @@ const Dashboard = () => {
 
       return () => clearInterval(refreshInterval);
     }
-  }, [currentAdmin]);
+  }, [currentAdmin, selectedPeriod]);
 
   // Get all check-ins for the table
   const getAllCheckIns = async (staffMembers = null) => {
@@ -147,50 +143,50 @@ const Dashboard = () => {
       const data = await getDocs(checkInsRef);
 
       const allCheckIns = data.docs
-        .map((doc) => {
-          const checkInData = doc.data();
-          return {
-            ...checkInData,
-            id: doc.id,
-            employeeId: checkInData.employeeId || "",
-          };
-        })
-        .filter((checkIn) => {
-          const belongs = employeeIdSet.has(checkIn.employeeId);
-          if (!belongs && checkIn.employeeId) {
-            console.log(
-              `CheckIn ${checkIn.id} with employeeId ${checkIn.employeeId} doesn't match any staff member`
-            );
-          }
-          return belongs;
-        });
+          .map((doc) => {
+            const checkInData = doc.data();
+            return {
+              ...checkInData,
+              id: doc.id,
+              employeeId: checkInData.employeeId || "",
+            };
+          })
+          .filter((checkIn) => {
+            const belongs = employeeIdSet.has(checkIn.employeeId);
+            if (!belongs && checkIn.employeeId) {
+              console.log(
+                  `CheckIn ${checkIn.id} with employeeId ${checkIn.employeeId} doesn't match any staff member`
+              );
+            }
+            return belongs;
+          });
 
       console.log(
-        `Fetched ${allCheckIns.length} total check-ins out of ${data.docs.length} documents`
+          `Fetched ${allCheckIns.length} total check-ins out of ${data.docs.length} documents`
       );
 
       // Log the structure of the first check-in to help debug
       if (allCheckIns.length > 0) {
         console.log(
-          "Sample check-in structure:",
-          JSON.stringify(
-            allCheckIns[0],
-            (key, value) => {
-              // Handle Firestore Timestamp objects for logging
-              if (
-                value &&
-                typeof value === "object" &&
-                value.seconds !== undefined &&
-                value.nanoseconds !== undefined
-              ) {
-                return `Timestamp(${new Date(
-                  value.seconds * 1000
-                ).toISOString()})`;
-              }
-              return value;
-            },
-            2
-          )
+            "Sample check-in structure:",
+            JSON.stringify(
+                allCheckIns[0],
+                (key, value) => {
+                  // Handle Firestore Timestamp objects for logging
+                  if (
+                      value &&
+                      typeof value === "object" &&
+                      value.seconds !== undefined &&
+                      value.nanoseconds !== undefined
+                  ) {
+                    return `Timestamp(${new Date(
+                        value.seconds * 1000
+                    ).toISOString()})`;
+                  }
+                  return value;
+                },
+                2
+            )
         );
       }
 
@@ -226,27 +222,27 @@ const Dashboard = () => {
       const data = await getDocs(q);
 
       const todayCheckIns = data.docs
-        .map((doc) => {
-          const checkInData = doc.data();
-          return {
-            ...checkInData,
-            id: doc.id,
-            employeeId: checkInData.employeeId || "",
-          };
-        })
-        .filter((checkIn) => employeeIdSet.has(checkIn.employeeId));
+          .map((doc) => {
+            const checkInData = doc.data();
+            return {
+              ...checkInData,
+              id: doc.id,
+              employeeId: checkInData.employeeId || "",
+            };
+          })
+          .filter((checkIn) => employeeIdSet.has(checkIn.employeeId));
 
       console.log(
-        `Fetched ${todayCheckIns.length} check-ins for today out of ${data.docs.length} documents`
+          `Fetched ${todayCheckIns.length} check-ins for today out of ${data.docs.length} documents`
       );
 
       // Log each check-in for today to debug
       todayCheckIns.forEach((checkIn) => {
         const checkInTime = checkIn.checkInTime?.toDate
-          ? checkIn.checkInTime.toDate().toLocaleTimeString()
-          : "unknown time";
+            ? checkIn.checkInTime.toDate().toLocaleTimeString()
+            : "unknown time";
         console.log(
-          `Today's check-in: Employee ${checkIn.employeeId} at ${checkInTime}`
+            `Today's check-in: Employee ${checkIn.employeeId} at ${checkInTime}`
         );
       });
 
@@ -274,42 +270,42 @@ const Dashboard = () => {
       const data = await getDocs(checkOutsRef);
 
       const allCheckOuts = data.docs
-        .map((doc) => {
-          const checkOutData = doc.data();
-          return {
-            ...checkOutData,
-            id: doc.id,
-            employeeId: checkOutData.employeeId || "",
-          };
-        })
-        .filter((checkOut) => employeeIdSet.has(checkOut.employeeId));
+          .map((doc) => {
+            const checkOutData = doc.data();
+            return {
+              ...checkOutData,
+              id: doc.id,
+              employeeId: checkOutData.employeeId || "",
+            };
+          })
+          .filter((checkOut) => employeeIdSet.has(checkOut.employeeId));
 
       console.log(
-        `Fetched ${allCheckOuts.length} total check-outs out of ${data.docs.length} documents`
+          `Fetched ${allCheckOuts.length} total check-outs out of ${data.docs.length} documents`
       );
 
       // Log the structure of the first check-out to help debug
       if (allCheckOuts.length > 0) {
         console.log(
-          "Sample check-out structure:",
-          JSON.stringify(
-            allCheckOuts[0],
-            (key, value) => {
-              // Handle Firestore Timestamp objects for logging
-              if (
-                value &&
-                typeof value === "object" &&
-                value.seconds !== undefined &&
-                value.nanoseconds !== undefined
-              ) {
-                return `Timestamp(${new Date(
-                  value.seconds * 1000
-                ).toISOString()})`;
-              }
-              return value;
-            },
-            2
-          )
+            "Sample check-out structure:",
+            JSON.stringify(
+                allCheckOuts[0],
+                (key, value) => {
+                  // Handle Firestore Timestamp objects for logging
+                  if (
+                      value &&
+                      typeof value === "object" &&
+                      value.seconds !== undefined &&
+                      value.nanoseconds !== undefined
+                  ) {
+                    return `Timestamp(${new Date(
+                        value.seconds * 1000
+                    ).toISOString()})`;
+                  }
+                  return value;
+                },
+                2
+            )
         );
       }
 
@@ -321,39 +317,36 @@ const Dashboard = () => {
     }
   };
 
+  // Modified function to get ALL staff members without filtering by adminId
   const getAllStaffMembers = async () => {
     try {
       if (!currentAdmin) return [];
 
-      // Get employees from the main employees collection
-      // Filter by adminId to get employees created by this admin if needed
+      // Get all employees from the main employees collection without filtering by adminId
       const staffRef = collection(firestoreDb, "employees");
-      const q = query(staffRef, where("adminId", "==", currentAdmin.uid));
-      const data = await getDocs(q);
+      const data = await getDocs(staffRef);
 
-      const filteredStaff = data.docs.map((staffDoc) => {
+      const allStaff = data.docs.map((staffDoc) => {
         const docData = staffDoc.data();
         return {
           ...docData,
           staffId: staffDoc.id,
           uid: docData.uid || staffDoc.id, // Ensure uid exists, fallback to doc.id
-          adminId: currentAdmin.uid, // Add the admin ID to each employee
+          adminId: docData.adminId || "unknown", // Keep track of which admin created the employee
         };
       });
 
-      console.log(
-        `Fetched ${filteredStaff.length} staff members for admin ${currentAdmin.uid}`
-      );
+      console.log(`Fetched ${allStaff.length} total staff members`);
 
       // Log each staff member for debugging
-      filteredStaff.forEach((staff) => {
+      allStaff.forEach((staff) => {
         console.log(
-          `Staff member: ${staff.firstName} ${staff.lastName}, ID: ${staff.uid}, Admin: ${staff.adminId}`
+            `Staff member: ${staff.firstName} ${staff.lastName}, ID: ${staff.uid}, Admin: ${staff.adminId}`
         );
       });
 
-      setStaffList(filteredStaff);
-      return filteredStaff;
+      setStaffList(allStaff);
+      return allStaff;
     } catch (e) {
       console.error("Error getting staff members:", e);
       return [];
@@ -368,19 +361,19 @@ const Dashboard = () => {
 
       // Create a Set of checked-in employee IDs for faster lookup
       const checkedInIdsSet = new Set(
-        todayAttendance.map((record) => record.employeeId)
+          todayAttendance.map((record) => record.employeeId)
       );
       console.log("Staff who checked in today:", Array.from(checkedInIdsSet));
 
       // Filter staff who haven't checked in today
       const absentStaff = allStaff.filter(
-        (staff) => !checkedInIdsSet.has(staff.uid)
+          (staff) => !checkedInIdsSet.has(staff.uid)
       );
 
       // Log each absent staff member to debug
       absentStaff.forEach((staff) => {
         console.log(
-          `Absent staff: ${staff.firstName} ${staff.lastName}, ID: ${staff.uid}`
+            `Absent staff: ${staff.firstName} ${staff.lastName}, ID: ${staff.uid}`
         );
       });
 
@@ -405,9 +398,9 @@ const Dashboard = () => {
         try {
           // Get the check-in time
           const checkInTime =
-            typeof record.checkInTime.toDate === "function"
-              ? record.checkInTime.toDate()
-              : new Date(record.checkInTime);
+              typeof record.checkInTime.toDate === "function"
+                  ? record.checkInTime.toDate()
+                  : new Date(record.checkInTime);
 
           // Create cutoff times for the same day
           const checkInDate = new Date(checkInTime);
@@ -415,37 +408,37 @@ const Dashboard = () => {
           // Standard cutoff time - 9:00 AM
           // IMPORTANT: Adding 1 second buffer to allow for exact 9:00:00 check-ins
           const cutoffTime = new Date(
-            checkInDate.getFullYear(),
-            checkInDate.getMonth(),
-            checkInDate.getDate(),
-            9,
-            0,
-            1,
-            0 // 9:00:01 AM cutoff (1 second after 9:00 AM)
+              checkInDate.getFullYear(),
+              checkInDate.getMonth(),
+              checkInDate.getDate(),
+              9,
+              0,
+              1,
+              0 // 9:00:01 AM cutoff (1 second after 9:00 AM)
           );
 
           // Early morning cutoff (before 5:00 AM is considered late)
           const earlyMorningCutoff = new Date(
-            checkInDate.getFullYear(),
-            checkInDate.getMonth(),
-            checkInDate.getDate(),
-            5,
-            0,
-            0,
-            0 // 5:00 AM cutoff for early morning
+              checkInDate.getFullYear(),
+              checkInDate.getMonth(),
+              checkInDate.getDate(),
+              5,
+              0,
+              0,
+              0 // 5:00 AM cutoff for early morning
           );
 
           // Consider late if:
           // 1. Check-in is after 9:00:01 AM (allowing exactly 9:00:00 AM to be on time), or
           // 2. Check-in is before 5:00 AM (very early morning is considered late)
           const isLate =
-            checkInTime > cutoffTime || checkInTime < earlyMorningCutoff;
+              checkInTime > cutoffTime || checkInTime < earlyMorningCutoff;
 
           // Log for debugging
           console.log(
-            `Employee ${
-              record.employeeId
-            } check-in: ${checkInTime.toLocaleTimeString()}, ` +
+              `Employee ${
+                  record.employeeId
+              } check-in: ${checkInTime.toLocaleTimeString()}, ` +
               `cutoff: ${cutoffTime.toLocaleTimeString()}, isLate: ${isLate}`
           );
 
@@ -472,7 +465,6 @@ const Dashboard = () => {
     lateArrivals: lateArrivals.length,
   });
 
-  // Replace the handleCardClick function with this updated version
   const handleCardClick = (cardType) => {
     let title = "";
     let employees = [];
@@ -488,35 +480,38 @@ const Dashboard = () => {
         phoneNumber: staff.phoneNumber || "Not available",
         status: "Active",
         profileImageUrl: staff.profileImageUrl || "",
+        // Add admin who created this employee for reference
+        createdBy: staff.adminId || "Unknown admin",
       }));
     } else if (cardType === "checkInsToday") {
       title = "Employees Checked In Today";
       const checkedInEmployeeIds = new Set(
-        todayCheckIns.map((checkIn) => checkIn.employeeId)
+          todayCheckIns.map((checkIn) => checkIn.employeeId)
       );
 
       employees = staffList
-        .filter((staff) => checkedInEmployeeIds.has(staff.uid))
-        .map((staff) => {
-          const checkIn = todayCheckIns.find(
-            (ci) => ci.employeeId === staff.uid
-          );
-          const checkInTime = checkIn?.checkInTime?.toDate
-            ? checkIn.checkInTime.toDate().toLocaleTimeString()
-            : "Unknown time";
+          .filter((staff) => checkedInEmployeeIds.has(staff.uid))
+          .map((staff) => {
+            const checkIn = todayCheckIns.find(
+                (ci) => ci.employeeId === staff.uid
+            );
+            const checkInTime = checkIn?.checkInTime?.toDate
+                ? checkIn.checkInTime.toDate().toLocaleTimeString()
+                : "Unknown time";
 
-          return {
-            id: staff.uid,
-            name: `${staff.firstName} ${staff.lastName}`,
-            department: staff.department || "Not specified",
-            designation: staff.designation || "Not specified",
-            email: staff.email || "Not available",
-            phoneNumber: staff.phoneNumber || "Not available",
-            status: "Checked In",
-            checkInTime: checkInTime,
-            profileImageUrl: staff.profileImageUrl || "",
-          };
-        });
+            return {
+              id: staff.uid,
+              name: `${staff.firstName} ${staff.lastName}`,
+              department: staff.department || "Not specified",
+              designation: staff.designation || "Not specified",
+              email: staff.email || "Not available",
+              phoneNumber: staff.phoneNumber || "Not available",
+              status: "Checked In",
+              checkInTime: checkInTime,
+              profileImageUrl: staff.profileImageUrl || "",
+              createdBy: staff.adminId || "Unknown admin",
+            };
+          });
     } else if (cardType === "absentees") {
       title = "Absent Employees Today";
       employees = absents.map((staff) => ({
@@ -528,130 +523,126 @@ const Dashboard = () => {
         phoneNumber: staff.phoneNumber || "Not available",
         status: "Absent",
         profileImageUrl: staff.profileImageUrl || "",
+        createdBy: staff.adminId || "Unknown admin",
       }));
     } else if (cardType === "lateArrivals") {
       title = "Late Arriving Employees Today";
       const lateEmployeeIds = new Set(
-        lateArrivals.map((late) => late.employeeId)
+          lateArrivals.map((late) => late.employeeId)
       );
 
       employees = staffList
-        .filter((staff) => lateEmployeeIds.has(staff.uid))
-        .map((staff) => {
-          const lateArrival = lateArrivals.find(
-            (la) => la.employeeId === staff.uid
-          );
-          const lateMinutes = lateArrival?.lateMinutes || 0;
-          const checkInTime = lateArrival?.checkInTime?.toDate
-            ? lateArrival.checkInTime.toDate().toLocaleTimeString()
-            : "Unknown time";
+          .filter((staff) => lateEmployeeIds.has(staff.uid))
+          .map((staff) => {
+            const lateArrival = lateArrivals.find(
+                (la) => la.employeeId === staff.uid
+            );
+            const lateMinutes = lateArrival?.lateMinutes || 0;
+            const checkInTime = lateArrival?.checkInTime?.toDate
+                ? lateArrival.checkInTime.toDate().toLocaleTimeString()
+                : "Unknown time";
 
-          return {
-            id: staff.uid,
-            name: `${staff.firstName} ${staff.lastName}`,
-            department: staff.department || "Not specified",
-            designation: staff.designation || "Not specified",
-            email: staff.email || "Not available",
-            phoneNumber: staff.phoneNumber || "Not available",
-            status: `Late (${lateMinutes} mins)`,
-            checkInTime: checkInTime,
-            profileImageUrl: staff.profileImageUrl || "",
-          };
-        });
+            return {
+              id: staff.uid,
+              name: `${staff.firstName} ${staff.lastName}`,
+              department: staff.department || "Not specified",
+              designation: staff.designation || "Not specified",
+              email: staff.email || "Not available",
+              phoneNumber: staff.phoneNumber || "Not available",
+              status: `Late (${lateMinutes} mins)`,
+              checkInTime: checkInTime,
+              profileImageUrl: staff.profileImageUrl || "",
+              createdBy: staff.adminId || "Unknown admin",
+            };
+          });
     }
 
     setModalTitle(title);
     setFilteredEmployees(employees);
     setModalOpen(true);
   };
+
   const handlePeriodChange = (period) => {
     setSelectedPeriod(period);
-
-    // Regenerate chart data based on the selected period
-
-    const lineChartData = generateAttendanceChartData(
-      checkIns,
-      staffList,
-      period
-    );
-    setAttendanceChartData(lineChartData);
+    // Chart data will be regenerated in the useEffect that depends on selectedPeriod
   };
+
   return (
-    <div>
-      <div className="flex flex-col p-10">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-black">Dashboard</h2>
-            <h4 className="mt-2 text-gray-600">
-              Overview of all staff activities.
-            </h4>
+      <div>
+        <div className="flex flex-col p-10">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-black">Dashboard</h2>
+              <h4 className="mt-2 text-gray-600">
+                Overview of all staff activities across the organization.
+              </h4>
+            </div>
+            {/* <QRCodeGenerator /> */}
           </div>
-          {/* <QRCodeGenerator /> */}
-        </div>
 
-        <div className="flex mt-10 justify-between">
-          <DashboardCard
-            title={"Total Staff"}
-            value={staffList.length}
-            icon={assets.totalStaff}
-            onClick={() => handleCardClick("totalStaff")}
-            isSelected={selectedCard === "totalStaff"}
-          />
-          <DashboardCard
-            title={"Check-ins Today"}
-            value={todayCheckIns.length}
-            icon={assets.checkInsToday}
-            onClick={() => handleCardClick("checkInsToday")}
-            isSelected={selectedCard === "checkInsToday"}
-          />
-          <DashboardCard
-            title={"Absentees"}
-            value={absents.length}
-            icon={assets.totalAbsents}
-            onClick={() => handleCardClick("absentees")}
-            isSelected={selectedCard === "absentees"}
-          />
-          <DashboardCard
-            title={"Late Arrivals"}
-            value={lateArrivals.length}
-            icon={assets.lateArrivals}
-            onClick={() => handleCardClick("lateArrivals")}
-            isSelected={selectedCard === "lateArrivals"}
-          />
-        </div>
-
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <AttendanceDasboardChart
-              data={attendanceChartData}
-              onPeriodChange={handlePeriodChange}
+          <div className="flex mt-10 justify-between">
+            <DashboardCard
+                title={"Total Staff"}
+                value={staffList.length}
+                icon={assets.totalStaff}
+                onClick={() => handleCardClick("totalStaff")}
+                isSelected={selectedCard === "totalStaff"}
+            />
+            <DashboardCard
+                title={"Check-ins Today"}
+                value={todayCheckIns.length}
+                icon={assets.checkInsToday}
+                onClick={() => handleCardClick("checkInsToday")}
+                isSelected={selectedCard === "checkInsToday"}
+            />
+            <DashboardCard
+                title={"Absentees"}
+                value={absents.length}
+                icon={assets.totalAbsents}
+                onClick={() => handleCardClick("absentees")}
+                isSelected={selectedCard === "absentees"}
+            />
+            <DashboardCard
+                title={"Late Arrivals"}
+                value={lateArrivals.length}
+                icon={assets.lateArrivals}
+                onClick={() => handleCardClick("lateArrivals")}
+                isSelected={selectedCard === "lateArrivals"}
             />
           </div>
 
-          <div>
-            <WeeklyAttendanceChart data={weeklyAttendanceData} />
+          <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <AttendanceDasboardChart
+                  data={attendanceChartData}
+                  onPeriodChange={handlePeriodChange}
+              />
+            </div>
+
+            <div>
+              <WeeklyAttendanceChart data={weeklyAttendanceData} />
+            </div>
+          </div>
+          <div className="mt-10">
+            <EmployeeTable
+                staffList={staffList}
+                checkIns={checkIns}
+                checkOuts={checkOuts}
+                absents={absents}
+                lateArrivals={lateArrivals}
+                loading={loading}
+                selectedFilter={selectedCard}
+            />
           </div>
         </div>
-        <div className="mt-10">
-          <EmployeeTable
-            staffList={staffList}
-            checkIns={checkIns}
-            checkOuts={checkOuts}
-            absents={absents}
-            lateArrivals={lateArrivals}
-            loading={loading}
-            selectedFilter={selectedCard}
-          />
-        </div>
+        {modalOpen && (
+            <EmployeeModal
+                title={modalTitle}
+                employees={filteredEmployees}
+                onClose={() => setModalOpen(false)}
+            />
+        )}
       </div>
-      {modalOpen && (
-        <EmployeeModal
-          title={modalTitle}
-          employees={filteredEmployees}
-          onClose={() => setModalOpen(false)}
-        />
-      )}
-    </div>
   );
 };
 

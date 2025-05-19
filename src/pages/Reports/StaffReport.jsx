@@ -229,11 +229,11 @@ export default function Reports() {
 
       // Filter for the selected month
       const monthlyCheckIns = checkIns.filter((checkIn) =>
-        isWithinInterval(checkIn.time, { start: firstDay, end: lastDay }),
+          isWithinInterval(checkIn.time, { start: firstDay, end: lastDay }),
       )
 
       const monthlyCheckOuts = checkOuts.filter((checkOut) =>
-        isWithinInterval(checkOut.time, { start: firstDay, end: lastDay }),
+          isWithinInterval(checkOut.time, { start: firstDay, end: lastDay }),
       )
 
       console.log(`${monthlyCheckIns.length} check-ins and ${monthlyCheckOuts.length} check-outs in selected month`)
@@ -245,26 +245,26 @@ export default function Reports() {
       let onTimeDays = 0
       // Get the employee's creation date
       const employeeCreationDate = employee.createdAt
-        ? employee.createdAt.toDate
-          ? employee.createdAt.toDate()
-          : new Date(employee.createdAt.seconds * 1000)
-        : new Date(currentYear, monthIndex, 1) // Fallback to first day of current month
+          ? employee.createdAt.toDate
+              ? employee.createdAt.toDate()
+              : new Date(employee.createdAt.seconds * 1000)
+          : new Date(currentYear, monthIndex, 1) // Fallback to first day of current month
 
       // Calculate working days from employee creation date or start of month (whichever is later)
       const startDateForCalculation = isWithinInterval(employeeCreationDate, {
         start: firstDay,
         end: lastDay,
       })
-        ? employeeCreationDate
-        : firstDay
+          ? employeeCreationDate
+          : firstDay
 
       const today = new Date()
       const endDateForCalculation = isWithinInterval(today, {
         start: firstDay,
         end: lastDay,
       })
-        ? today
-        : lastDay
+          ? today
+          : lastDay
 
       // Count actual working days (excluding weekends)
       let workingDays = 0
@@ -383,7 +383,7 @@ export default function Reports() {
       setChartData(chartDataArray)
 
       console.log(
-        `Attendance summary: ${presentDays} present, ${absentDays} absent, ${onTimePercentage}% on time, ${totalWorkingHours} working hours`,
+          `Attendance summary: ${presentDays} present, ${absentDays} absent, ${onTimePercentage}% on time, ${totalWorkingHours} working hours`,
       )
     } catch (err) {
       console.error("Error fetching attendance data:", err)
@@ -503,10 +503,10 @@ export default function Reports() {
 
         // Get the employee's creation date
         const employeeCreationDate = data.createdAt
-          ? data.createdAt.toDate
-            ? data.createdAt.toDate()
-            : new Date(data.createdAt.seconds * 1000)
-          : new Date() // Fallback to today if no creation date
+            ? data.createdAt.toDate
+                ? data.createdAt.toDate()
+                : new Date(data.createdAt.seconds * 1000)
+            : new Date() // Fallback to today if no creation date
 
         // Get the current month's date range
         const currentYear = new Date().getFullYear()
@@ -520,15 +520,15 @@ export default function Reports() {
           start: firstDay,
           end: lastDay,
         })
-          ? employeeCreationDate
-          : firstDay
+            ? employeeCreationDate
+            : firstDay
 
         const endDateForCalculation = isWithinInterval(today, {
           start: firstDay,
           end: lastDay,
         })
-          ? today
-          : lastDay
+            ? today
+            : lastDay
 
         // Count actual working days (excluding weekends)
         let workingDays = 0
@@ -563,6 +563,7 @@ export default function Reports() {
           absents: absentDays,
           overtime: `${overtimeHours} hour${overtimeHours !== 1 ? "s" : ""}`,
           workingHours: totalWorkingHours,
+          adminId: data.adminId,
         })
       }
 
@@ -686,471 +687,472 @@ export default function Reports() {
 
   // Filter employees based on search query
   const filteredEmployees = employees.filter(
-    (employee) =>
-      employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.department.toLowerCase().includes(searchQuery.toLowerCase()),
+      (employee) =>
+          employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          employee.department.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
-        <CircularProgress />
-        <Typography variant="h6" sx={{ ml: 2 }}>
-          Loading...
-        </Typography>
-      </Box>
+        <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
+          <CircularProgress />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading...
+          </Typography>
+        </Box>
     )
   }
 
   if (error && employeeId) {
     return (
-      <Box p={4}>
-        <Typography variant="h6" color="error">
-          {error}
-        </Typography>
-        <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={handleBack} sx={{ mt: 2 }}>
-          Back to Staff Management
-        </Button>
-      </Box>
+        <Box p={4}>
+          <Typography variant="h6" color="error">
+            {error}
+          </Typography>
+          <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={handleBack} sx={{ mt: 2 }}>
+            Back to Staff Management
+          </Button>
+        </Box>
     )
   }
 
   // If employeeId is provided, show single employee report
   if (employeeId && employee) {
     return (
-      <div className="flex items-start gap-5 m-5">
-        <div className="max-w-[400px] bg-[#F9F9F9] p-4 rounded-2xl">
-          <div className="flex items-center justify-between">
-            <p>Person info</p>
-            <div className="flex gap-2">
-              {editMode ? (
-                <>
-                  <button
-                    onClick={handleSaveChanges}
-                    className="border-2 text-sm border-[#3DC296] text-[#3DC296] px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-[#3DC296] hover:text-white flex items-center gap-1"
-                  >
-                    <SaveIcon fontSize="small" />
-                    Save
-                  </button>
-                  <button
-                    onClick={handleEditToggle}
-                    className="border-2 text-sm border-gray-500 text-gray-500 px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-gray-500 hover:text-white flex items-center gap-1"
-                  >
-                    <CancelIcon fontSize="small" />
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={handleEditToggle}
-                    className="border-2 text-sm border-blue-500 text-blue-500 px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-blue-500 hover:text-white flex items-center gap-1"
-                  >
-                    <EditIcon fontSize="small" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleOpenQrDialog(employee)}
-                    className="border-2 text-sm border-black text-black px-4 py-2 rounded-lg font-bold cursor-pointer hover:scale-105"
-                  >
-                    <QrCode />
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          <Divider sx={{ marginY: 2 }} />
-
-          <div className="mx-auto">
-            {employee?.photoURL ? (
-              <Avatar
-                src={employee.photoURL}
-                alt={employee.name}
-                sx={{
-                  width: 102,
-                  height: 102,
-                  marginRight: 2,
-                  marginX: "auto",
-                }}
-              />
-            ) : (
-              <Avatar
-                sx={{
-                  width: 102,
-                  height: 102,
-                  marginRight: 2,
-                  marginX: "auto",
-                  borderRadius: 3,
-                }}
-                alt={employee?.name}
-              >
-                {getInitials(employee?.name)}
-              </Avatar>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-7 mt-5">
-            <div className="flex gap-3 mt-5">
-              {editMode ? (
-                <>
-                  <TextField
-                    label="First Name"
-                    name="firstName"
-                    value={formValues.firstName || ""}
-                    onChange={handleInputChange}
-                    fullWidth
-                    size="small"
-                  />
-                  <TextField
-                    label="Last Name"
-                    name="lastName"
-                    value={formValues.lastName || ""}
-                    onChange={handleInputChange}
-                    fullWidth
-                    size="small"
-                  />
-                </>
-              ) : (
-                <>
-                  <InputField label={"First Name"} value={employee?.firstName} disabled />
-                  <InputField label={"Last Name"} value={employee?.lastName} disabled />
-                </>
-              )}
-            </div>
-            {editMode ? (
-              <>
-                <TextField
-                  label="Department"
-                  name="department"
-                  value={formValues.department || ""}
-                  onChange={handleInputChange}
-                  fullWidth
-                  size="small"
-                />
-                <TextField
-                  label="Designation"
-                  name="designation"
-                  value={formValues.designation || ""}
-                  onChange={handleInputChange}
-                  fullWidth
-                  size="small"
-                />
-                <TextField
-                  label="Bio"
-                  name="bio"
-                  value={formValues.bio || ""}
-                  onChange={handleInputChange}
-                  fullWidth
-                  size="small"
-                  multiline
-                  rows={3}
-                />
-                <TextField
-                  label="Email"
-                  name="email"
-                  value={formValues.email || ""}
-                  InputProps={{
-                    readOnly: true,
-                  }}
-                  helperText="Email cannot be changed as it is a unique identifier"
-                  fullWidth
-                  size="small"
-                  type="email"
-                  disabled={true}
-                />
-                <TextField
-                  label="Phone"
-                  name="phoneNumber"
-                  value={formValues.phoneNumber || ""}
-                  onChange={handleInputChange}
-                  fullWidth
-                  size="small"
-                />
-                <TextField
-                  label="Working Hours (per week)"
-                  name="workingHours"
-                  value={formValues.workingHours || "40"}
-                  onChange={handleInputChange}
-                  fullWidth
-                  size="small"
-                  type="number"
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">hours</InputAdornment>,
-                  }}
-                />
-              </>
-            ) : (
-              <>
-                <InputField label={"Department"} value={employee?.department} disabled={true} />
-                <InputField label={"Designation"} value={employee?.designation} disabled={true} />
-                <InputField label={"Bio"} value={employee?.bio} disabled={true} />
-                <InputField label={"Email"} value={employee?.email} disabled={true} />
-                <InputField label={"Phone"} value={employee?.phoneNumber} disabled={true} />
-                <InputField
-                  label={"Working Hours (per week)"}
-                  value={`${employee?.workingHours || 40} hours`}
-                  disabled={true}
-                />
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex-1">
-          <div className="bg-[#F9F9F9] p-4 rounded-2xl">
-            <div className="flex justify-between items-center">
-              <p>Attendance Report</p>
-              <button
-                className="border-2 text-sm border-[#3DC296] text-[#3DC296] px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-[#3DC296] hover:text-white"
-                onClick={() => handleViewHistory(employeeId)}
-              >
-                View History
-              </button>
-            </div>
-
-            <Divider sx={{ marginY: 3 }} />
-
-            <div className="grid grid-rows-2 grid-cols-2 gap-4">
-              <AttendanceReportCard
-                title={"Total Present"}
-                value={attendanceSummary.present}
-                style={"bg-[#3DC29610] border-2 border-[#3DC296]"}
-                icon={assets.presentIcon}
-              />
-              <AttendanceReportCard
-                title={"Total absents"}
-                value={attendanceSummary.absent}
-                style={"bg-[#EC091B1A] border-2 border-[#EC091B]"}
-                icon={assets.absentsIcon}
-              />
-              <AttendanceReportCard
-                title={"On Time"}
-                value={attendanceSummary.onTime}
-                style={"bg-[#00A2FF1A] border-2 border-[#00A2FF]"}
-                icon={assets.onTimeIcon}
-              />
-              <AttendanceReportCard
-                title={"Working Hours"}
-                value={`${attendanceSummary.totalWorkingHours} hrs`}
-                style={"bg-[#FFBB001A] border-2 border-[#FFBB00]"}
-                icon={assets.overTimeIcon}
-              />
-            </div>
-            <div className="bg-white p-4 mt-5 rounded-2xl">
-              <div className="flex justify-between items-center">
-                <div className="pt-2">
-                  <p className="text-lg font-bold text-[#24282E]">Attendance Statistics</p>
-                  <p className="text-sm font-medium text-[#727A90]">Overview of attendance for {employee.name}.</p>
-                </div>
-                <InputField dropdown={true} value={selectedMonth} options={options} onChange={handleMonthChange} />
+        <div className="flex items-start gap-5 m-5">
+          <div className="max-w-[400px] bg-[#F9F9F9] p-4 rounded-2xl">
+            <div className="flex items-center justify-between">
+              <p>Person info</p>
+              <div className="flex gap-2">
+                {editMode ? (
+                    <>
+                      <button
+                          onClick={handleSaveChanges}
+                          className="border-2 text-sm border-[#3DC296] text-[#3DC296] px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-[#3DC296] hover:text-white flex items-center gap-1"
+                      >
+                        <SaveIcon fontSize="small" />
+                        Save
+                      </button>
+                      <button
+                          onClick={handleEditToggle}
+                          className="border-2 text-sm border-gray-500 text-gray-500 px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-gray-500 hover:text-white flex items-center gap-1"
+                      >
+                        <CancelIcon fontSize="small" />
+                        Cancel
+                      </button>
+                    </>
+                ) : (
+                    <>
+                      <button
+                          onClick={handleEditToggle}
+                          className="border-2 text-sm border-blue-500 text-blue-500 px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-blue-500 hover:text-white flex items-center gap-1"
+                      >
+                        <EditIcon fontSize="small" />
+                        Edit
+                      </button>
+                      <button
+                          onClick={() => handleOpenQrDialog(employee)}
+                          className="border-2 text-sm border-black text-black px-4 py-2 rounded-lg font-bold cursor-pointer hover:scale-105"
+                      >
+                        <QrCode />
+                      </button>
+                    </>
+                )}
               </div>
-              <Divider sx={{ marginY: 2 }} />
-              <AttendanceChart data={chartData} />
+            </div>
+
+            <Divider sx={{ marginY: 2 }} />
+
+            <div className="mx-auto">
+              {employee?.photoURL ? (
+                  <Avatar
+                      src={employee.photoURL}
+                      alt={employee.name}
+                      sx={{
+                        width: 102,
+                        height: 102,
+                        marginRight: 2,
+                        marginX: "auto",
+                      }}
+                  />
+              ) : (
+                  <Avatar
+                      sx={{
+                        width: 102,
+                        height: 102,
+                        marginRight: 2,
+                        marginX: "auto",
+                        borderRadius: 3,
+                      }}
+                      alt={employee?.name}
+                  >
+                    {getInitials(employee?.name)}
+                  </Avatar>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-7 mt-5">
+              <div className="flex gap-3 mt-5">
+                {editMode ? (
+                    <>
+                      <TextField
+                          label="First Name"
+                          name="firstName"
+                          value={formValues.firstName || ""}
+                          onChange={handleInputChange}
+                          fullWidth
+                          size="small"
+                      />
+                      <TextField
+                          label="Last Name"
+                          name="lastName"
+                          value={formValues.lastName || ""}
+                          onChange={handleInputChange}
+                          fullWidth
+                          size="small"
+                      />
+                    </>
+                ) : (
+                    <>
+                      <InputField label={"First Name"} value={employee?.firstName} disabled />
+                      <InputField label={"Last Name"} value={employee?.lastName} disabled />
+                    </>
+                )}
+              </div>
+              {editMode ? (
+                  <>
+                    <TextField
+                        label="Department"
+                        name="department"
+                        value={formValues.department || ""}
+                        onChange={handleInputChange}
+                        fullWidth
+                        size="small"
+                    />
+                    <TextField
+                        label="Designation"
+                        name="designation"
+                        value={formValues.designation || ""}
+                        onChange={handleInputChange}
+                        fullWidth
+                        size="small"
+                    />
+                    <TextField
+                        label="Bio"
+                        name="bio"
+                        value={formValues.bio || ""}
+                        onChange={handleInputChange}
+                        fullWidth
+                        size="small"
+                        multiline
+                        rows={3}
+                    />
+                    <TextField
+                        label="Email"
+                        name="email"
+                        value={formValues.email || ""}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                        helperText="Email cannot be changed as it is a unique identifier"
+                        fullWidth
+                        size="small"
+                        type="email"
+                        disabled={true}
+                    />
+                    <TextField
+                        label="Phone"
+                        name="phoneNumber"
+                        value={formValues.phoneNumber || ""}
+                        onChange={handleInputChange}
+                        fullWidth
+                        size="small"
+                    />
+                    <TextField
+                        label="Working Hours (per week)"
+                        name="workingHours"
+                        value={formValues.workingHours || "40"}
+                        onChange={handleInputChange}
+                        fullWidth
+                        size="small"
+                        type="number"
+                        InputProps={{
+                          endAdornment: <InputAdornment position="end">hours</InputAdornment>,
+                        }}
+                    />
+                  </>
+              ) : (
+                  <>
+                    <InputField label={"Department"} value={employee?.department} disabled={true} />
+                    <InputField label={"Designation"} value={employee?.designation} disabled={true} />
+                    <InputField label={"Bio"} value={employee?.bio} disabled={true} />
+                    <InputField label={"Email"} value={employee?.email} disabled={true} />
+                    <InputField label={"Phone"} value={employee?.phoneNumber} disabled={true} />
+                    <InputField
+                        label={"Working Hours (per week)"}
+                        value={`${employee?.workingHours || 40} hours`}
+                        disabled={true}
+                    />
+                  </>
+              )}
             </div>
           </div>
+
+          <div className="flex-1">
+            <div className="bg-[#F9F9F9] p-4 rounded-2xl">
+              <div className="flex justify-between items-center">
+                <p>Attendance Report</p>
+                <button
+                    className="border-2 text-sm border-[#3DC296] text-[#3DC296] px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-[#3DC296] hover:text-white"
+                    onClick={() => handleViewHistory(employeeId)}
+                >
+                  View History
+                </button>
+              </div>
+
+              <Divider sx={{ marginY: 3 }} />
+
+              <div className="grid grid-rows-2 grid-cols-2 gap-4">
+                <AttendanceReportCard
+                    title={"Total Present"}
+                    value={attendanceSummary.present}
+                    style={"bg-[#3DC29610] border-2 border-[#3DC296]"}
+                    icon={assets.presentIcon}
+                />
+                <AttendanceReportCard
+                    title={"Total absents"}
+                    value={attendanceSummary.absent}
+                    style={"bg-[#EC091B1A] border-2 border-[#EC091B]"}
+                    icon={assets.absentsIcon}
+                />
+                <AttendanceReportCard
+                    title={"On Time"}
+                    value={attendanceSummary.onTime}
+                    style={"bg-[#00A2FF1A] border-2 border-[#00A2FF]"}
+                    icon={assets.onTimeIcon}
+                />
+                <AttendanceReportCard
+                    title={"Working Hours"}
+                    value={`${attendanceSummary.totalWorkingHours} hrs`}
+                    style={"bg-[#FFBB001A] border-2 border-[#FFBB00]"}
+                    icon={assets.overTimeIcon}
+                />
+              </div>
+              <div className="bg-white p-4 mt-5 rounded-2xl">
+                <div className="flex justify-between items-center">
+                  <div className="pt-2">
+                    <p className="text-lg font-bold text-[#24282E]">Attendance Statistics</p>
+                    <p className="text-sm font-medium text-[#727A90]">Overview of attendance for {employee.name}.</p>
+                  </div>
+                  <InputField dropdown={true} value={selectedMonth} options={options} onChange={handleMonthChange} />
+                </div>
+                <Divider sx={{ marginY: 2 }} />
+                <AttendanceChart data={chartData} />
+              </div>
+            </div>
+          </div>
+
+          {/* QR Code Dialog */}
+          <QrCodeDialog open={qrDialogOpen} onClose={handleCloseQrDialog} employee={selectedEmployee} />
+
+          {/* Confirmation Dialog */}
+          <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
+            <DialogTitle>Confirm Changes</DialogTitle>
+            <DialogContent>
+              <Typography>Are you sure you want to save these changes to the employee profile?</Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+              <Button onClick={confirmSaveChanges} variant="contained" color="primary" disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : "Save Changes"}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Snackbar for notifications */}
+          <Snackbar
+              open={snackbar.open}
+              autoHideDuration={6000}
+              onClose={handleCloseSnackbar}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          >
+            <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
+              {snackbar.message}
+            </Alert>
+          </Snackbar>
         </div>
-
-        {/* QR Code Dialog */}
-        <QrCodeDialog open={qrDialogOpen} onClose={handleCloseQrDialog} employee={selectedEmployee} />
-
-        {/* Confirmation Dialog */}
-        <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
-          <DialogTitle>Confirm Changes</DialogTitle>
-          <DialogContent>
-            <Typography>Are you sure you want to save these changes to the employee profile?</Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
-            <Button onClick={confirmSaveChanges} variant="contained" color="primary" disabled={loading}>
-              {loading ? <CircularProgress size={24} /> : "Save Changes"}
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Snackbar for notifications */}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={6000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        >
-          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </div>
     )
   }
 
   // If no employeeId is provided, show all employees report
   return (
-    <Box sx={{ p: 3 }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 3,
-        }}
-      >
-        <Box>
-          <Typography variant="h5" fontWeight="bold" color="text.primary">
-            Staff Reports
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Manage all staff here
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<ExportIcon />}
-          sx={{
-            backgroundColor: "#3DC296",
-            "&:hover": { backgroundColor: "#2ea37b" },
-          }}
-        >
-          Export All
-        </Button>
-      </Box>
-
-      <Paper sx={{ width: "100%", mb: 2, borderRadius: 2, overflow: "hidden" }}>
+      <Box sx={{ p: 3 }}>
         <Box
-          sx={{
-            p: 2,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 3,
+            }}
         >
-          <Typography variant="h6" fontWeight="medium">
-            Employees Reports
-          </Typography>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <TextField
-              placeholder="Search..."
-              size="small"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
+          <Box>
+            <Typography variant="h5" fontWeight="bold" color="text.primary">
+              Staff Reports
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage all staff here
+            </Typography>
+          </Box>
+          <Button
+              variant="contained"
+              startIcon={<ExportIcon />}
+              sx={{
+                backgroundColor: "#3DC296",
+                "&:hover": { backgroundColor: "#2ea37b" },
               }}
-              sx={{ width: 250 }}
-            />
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Typography variant="body2" sx={{ mr: 1 }}>
-                Show
-              </Typography>
+          >
+            Export All
+          </Button>
+        </Box>
+
+        <Paper sx={{ width: "100%", mb: 2, borderRadius: 2, overflow: "hidden" }}>
+          <Box
+              sx={{
+                p: 2,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+          >
+            <Typography variant="h6" fontWeight="medium">
+              Employees Reports
+            </Typography>
+            <Box sx={{ display: "flex", gap: 2 }}>
               <TextField
-                select
-                value={rowsPerPage}
-                onChange={handleChangeRowsPerPage}
-                SelectProps={{
-                  native: true,
-                }}
-                size="small"
-                sx={{ width: 70 }}
-              >
-                {[5, 10, 25, 50].map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </TextField>
+                  placeholder="Search..."
+                  size="small"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" />
+                        </InputAdornment>
+                    ),
+                  }}
+                  sx={{ width: 250 }}
+              />
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <Typography variant="body2" sx={{ mr: 1 }}>
+                  Show
+                </Typography>
+                <TextField
+                    select
+                    value={rowsPerPage}
+                    onChange={handleChangeRowsPerPage}
+                    SelectProps={{
+                      native: true,
+                    }}
+                    size="small"
+                    sx={{ width: 70 }}
+                >
+                  {[5, 10, 25, 50].map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                  ))}
+                </TextField>
+              </Box>
             </Box>
           </Box>
-        </Box>
 
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox"></TableCell>
-                <TableCell>ID</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Department</TableCell>
-                <TableCell>Present</TableCell>
-                <TableCell>Absents</TableCell>
-                <TableCell>Overtime</TableCell>
-                <TableCell>Working Hours</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredEmployees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((employee, index) => {
-                const isItemSelected = isSelected(employee.id)
-
-                return (
-                  <TableRow
-                    hover
-                    role="checkbox"
-                    aria-checked={isItemSelected}
-                    tabIndex={-1}
-                    key={employee.id}
-                    selected={isItemSelected}
-                  >
-                    <TableCell></TableCell>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <Avatar src={employee.photoURL} alt={employee.name} sx={{ width: 36, height: 36, mr: 2 }}>
-                          {getInitials(employee.name)}
-                        </Avatar>
-                        <Typography variant="body2">{employee.name}</Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{employee.department}</TableCell>
-                    <TableCell>{employee.present}</TableCell>
-                    <TableCell>{employee.absents}</TableCell>
-                    <TableCell>{employee.overtime}</TableCell>
-                    <TableCell>{employee.workingHours} hrs</TableCell>
-                  </TableRow>
-                )
-              })}
-              {filteredEmployees.length === 0 && (
+          <TableContainer>
+            <Table>
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={10} align="center">
-                    <Typography variant="body1" sx={{ py: 3 }}>
-                      No employees found
-                    </Typography>
-                  </TableCell>
+                  <TableCell padding="checkbox"></TableCell>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Department</TableCell>
+                  <TableCell>Present</TableCell>
+                  <TableCell>Absents</TableCell>
+                  <TableCell>Overtime</TableCell>
+                  <TableCell>Working Hours</TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          component="div"
-          count={filteredEmployees.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
-        <Box sx={{ p: 2, borderTop: "1px solid #eee" }}>
-          <Typography variant="body2" color="text.secondary">
-            Showing {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, filteredEmployees.length)} from{" "}
-            {filteredEmployees.length}
-          </Typography>
-        </Box>
-      </Paper>
+              </TableHead>
+              <TableBody>
+                {filteredEmployees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((employee, index) => {
+                  const isItemSelected = isSelected(employee.id)
 
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+                  return (
+                      <TableRow
+                          hover
+                          role="checkbox"
+                          aria-checked={isItemSelected}
+                          tabIndex={-1}
+                          key={employee.id}
+                          selected={isItemSelected}
+                      >
+                        <TableCell></TableCell>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <Avatar src={employee.photoURL} alt={employee.name} sx={{ width: 36, height: 36, mr: 2 }}>
+                              {getInitials(employee.name)}
+                            </Avatar>
+                            <Typography variant="body2">{employee.name}</Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{employee.department}</TableCell>
+                        <TableCell>{employee.present}</TableCell>
+                        <TableCell>{employee.absents}</TableCell>
+                        <TableCell>{employee.overtime}</TableCell>
+                        <TableCell>{employee.workingHours} hrs</TableCell>
+                        <TableCell>{employee.createdBy}</TableCell>
+                      </TableRow>
+                  )
+                })}
+                {filteredEmployees.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={10} align="center">
+                        <Typography variant="body1" sx={{ py: 3 }}>
+                          No employees found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              component="div"
+              count={filteredEmployees.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+          />
+          <Box sx={{ p: 2, borderTop: "1px solid #eee" }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, filteredEmployees.length)} from{" "}
+              {filteredEmployees.length}
+            </Typography>
+          </Box>
+        </Paper>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+            open={snackbar.open}
+            autoHideDuration={6000}
+            onClose={handleCloseSnackbar}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        >
+          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
   )
 }
 
