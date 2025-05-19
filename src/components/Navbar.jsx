@@ -15,6 +15,7 @@ import {
   ChevronRight,
 } from "@mui/icons-material";
 import { useLocation } from "react-router-dom";
+import { auth } from "../config/firebase";
 
 const Navbar = () => {
   const location = useLocation();
@@ -33,13 +34,11 @@ const Navbar = () => {
     >
       <Toolbar className="h-[72px]">
         <div className="flex items-center text-black">
-          <h1>
-            Home
-          </h1>
-          <span className="mx-2"><ChevronRight/></span>
-          <h1>
-             {currentPage}
-          </h1>
+          <h1>Home</h1>
+          <span className="mx-2">
+            <ChevronRight />
+          </span>
+          <h1>{currentPage}</h1>
         </div>
 
         <div className="flex-grow" />
@@ -51,14 +50,10 @@ const Navbar = () => {
         <div className="flex items-center ml-4">
           <Avatar className="mr-2" />
           <Typography variant="body1" className="mr-1">
-            Jerry Williams
+            {auth.currentUser?.displayName}
           </Typography>
-          <ArrowDownIcon />
-
         </div>
-
       </Toolbar>
-
     </AppBar>
   );
 };

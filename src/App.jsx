@@ -22,6 +22,10 @@ import Payroll from "./pages/Payroll/Payroll";
 import PayrollDetails from "./pages/Payroll/PayrollDetails";
 import SettingsPage from "./pages/Settings/Settings.jsx";
 import ChangePassword from "./pages/ChangePassword.jsx";
+import UploadFile from "./ImgTest.jsx";
+import ManageSuperVisor from "./pages/SuperVisor/ManageSuperVisor.jsx";
+import AddNewSupervisor from "./pages/SuperVisor/AddNewSupervisor.jsx";
+import PayrollAdminSummary from "./components/PayrollSummary.jsx";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -120,7 +124,7 @@ function App() {
   if (loading)
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#3DC296]"></div>
       </div>
     );
 
@@ -170,6 +174,9 @@ function App() {
               {userRole === "admin" && (
                 <>
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/manage-supervisor" element={<ManageSuperVisor />} />
+                  <Route path="/manage-supervisor/AddNewSupervisor" element={<AddNewSupervisor />} />
+
                   <Route path="/manage-staff" element={<ManageStaff />} />
                   <Route
                     path="/manage-staff/AddNewStaff"
@@ -186,6 +193,7 @@ function App() {
                     path="/reports/:employeeId/history"
                     element={<AttendanceHistory />}
                   />
+                  <Route path="/test" element={<UploadFile />} />
                 </>
               )}
 

@@ -143,12 +143,13 @@ const AdminManagement = () => {
             marginBottom: 4,
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: "bold", color: "#00796b" }}>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: "bold", color: "#00796b" }}
+          >
             Super Admin
           </Typography>
-          <Typography>
-          {superAdmin.email}
-          </Typography>
+          <Typography>{superAdmin.email}</Typography>
         </Box>
       )}
 
@@ -224,7 +225,9 @@ const AdminManagement = () => {
                   </TableCell>
                   <TableCell>
                     {admin.createdAt
-                      ? new Date(admin.createdAt.seconds * 1000).toLocaleDateString()
+                      ? new Date(
+                          admin.createdAt.seconds * 1000
+                        ).toLocaleDateString()
                       : "N/A"}
                   </TableCell>
                   <TableCell>

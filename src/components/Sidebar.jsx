@@ -14,7 +14,7 @@ import CustomButton from "../ui_components/CustomButton";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
-
+import SupervisorAccountOutlinedIcon from '@mui/icons-material/SupervisorAccountOutlined';
 const Sidebar = ({ userRole }) => {
   const location = useLocation();
   const currentPath = location.pathname;
@@ -22,7 +22,16 @@ const Sidebar = ({ userRole }) => {
   // Base menu items
   const baseMenuItems = [
     { text: "Dashboard", icon: assets.sidebarIcon1, path: "/dashboard" },
-    { text: "Manage Staff", icon: assets.sidebarIcon2, path: "/manage-staff" },
+    {
+      text: "Manage Supervisors",
+      icon: <SupervisorAccountOutlinedIcon />,
+      path: "/manage-supervisor",
+    },
+    {
+      text: "Manage Employees",
+      icon: assets.sidebarIcon2,
+      path: "/manage-staff",
+    },
     { text: "Payroll", icon: assets.sidebarIcon3, path: "/payroll" },
     { text: "Reports", icon: assets.sidebarIcon4, path: "/reports" },
     { text: "Settings", icon: assets.sidebarIcon5, path: "/settings" },

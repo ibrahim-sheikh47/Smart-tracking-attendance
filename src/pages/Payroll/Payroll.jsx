@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -11,113 +11,130 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Checkbox,
-  IconButton,
   InputAdornment,
   TextField,
   Avatar,
   Pagination,
-  Chip,
   Select,
   MenuItem,
   FormControl,
   CircularProgress,
   Alert,
-} from "@mui/material"
-import SearchIcon from "@mui/icons-material/Search"
-import DeleteIcon from "@mui/icons-material/Delete"
-import EditIcon from "@mui/icons-material/Edit"
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
-import CustomButton from "../../ui_components/CustomButton"
-import { useNavigate } from "react-router-dom"
-import { collection, getDocs, query, where, getDoc, doc } from "firebase/firestore"
-import { firestoreDb } from "../../config/firebase.jsx"
-import { format, differenceInMinutes } from "date-fns"
-import { getAuth } from "firebase/auth"
+  Tabs,
+  Tab,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import CustomButton from "../../ui_components/CustomButton";
+import { useNavigate } from "react-router-dom";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  getDoc,
+  doc,
+} from "firebase/firestore";
+import { firestoreDb } from "../../config/firebase.jsx";
+import { differenceInMinutes } from "date-fns";
+import { getAuth } from "firebase/auth";
+import PayrollSummary from "../../components/PayrollSummary";
 
 const Payroll = () => {
-  const navigate = useNavigate()
-  const [page, setPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [employees, setEmployees] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [selected, setSelected] = useState([])
+  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selected, setSelected] = useState([]);
   // eslint-disable-next-line no-unused-vars
-  const [selectAll, setSelectAll] = useState(false)
-  const [currentAdmin, setCurrentAdmin] = useState(null)
+  const [selectAll, setSelectAll] = useState(false);
+  const [currentAdmin, setCurrentAdmin] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   // Get the current admin user
   useEffect(() => {
     const fetchCurrentAdmin = async () => {
-      const auth = getAuth()
-      const user = auth.currentUser
+      const auth = getAuth();
+      const user = auth.currentUser;
 
       if (user) {
         try {
           // Get the admin document
-          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid))
+          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid));
           if (adminDoc.exists()) {
-            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() })
+            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() });
           } else {
-            console.error("Admin document not found")
-            setError("Admin account not found. Please contact support.")
+            console.error("Admin document not found");
+            setError("Admin account not found. Please contact support.");
           }
         } catch (error) {
-          console.error("Error fetching admin data:", error)
-          setError("Failed to load admin data. Please try again.")
+          console.error("Error fetching admin data:", error);
+          setError("Failed to load admin data. Please try again.");
         }
       } else {
-        setError("You must be logged in as an admin to view this page.")
+        setError("You must be logged in as an admin to view this page.");
       }
-    }
+    };
 
-    fetchCurrentAdmin()
-  }, [])
+    fetchCurrentAdmin();
+  }, []);
 
   // Fetch employees when admin data is available
   useEffect(() => {
     if (currentAdmin) {
-      fetchEmployees()
+      fetchEmployees();
     }
-  }, [currentAdmin])
+  }, [currentAdmin]);
 
   const fetchEmployees = async () => {
     try {
-      if (!currentAdmin) return
+      if (!currentAdmin) return;
 
-      setLoading(true)
-      // Get employees from the admin's subcollection
-      const employeesCollection = collection(firestoreDb, "admins", currentAdmin.id, "employees")
-      const employeesSnapshot = await getDocs(employeesCollection)
+      setLoading(true);
+      // Get employees from the main employees collection
+      // Filter by adminId to get employees created by this admin
+      const employeesCollection = collection(firestoreDb, "employees");
+      const q = query(
+        employeesCollection,
+        where("adminId", "==", currentAdmin.id)
+      );
+      const employeesSnapshot = await getDocs(q);
 
       const employeePromises = employeesSnapshot.docs.map(async (doc) => {
-        const employeeData = doc.data()
-        const employeeId = doc.id
+        const employeeData = doc.data();
+        const employeeId = doc.id;
 
         // Fetch check-ins for this employee
-        const checkInsRef = collection(firestoreDb, "CheckIns")
-        const checkInsQuery = query(checkInsRef, where("employeeId", "==", employeeId))
-        const checkInsSnapshot = await getDocs(checkInsQuery)
+        const checkInsRef = collection(firestoreDb, "CheckIns");
+        const checkInsQuery = query(
+          checkInsRef,
+          where("employeeId", "==", employeeId)
+        );
+        const checkInsSnapshot = await getDocs(checkInsQuery);
 
         // Fetch check-outs for this employee
-        const checkOutsRef = collection(firestoreDb, "CheckOuts")
-        const checkOutsQuery = query(checkOutsRef, where("employeeId", "==", employeeId))
-        const checkOutsSnapshot = await getDocs(checkOutsQuery)
+        const checkOutsRef = collection(firestoreDb, "CheckOuts");
+        const checkOutsQuery = query(
+          checkOutsRef,
+          where("employeeId", "==", employeeId)
+        );
+        const checkOutsSnapshot = await getDocs(checkOutsQuery);
 
         // Process check-ins and check-outs
-        const checkIns = []
+        const checkIns = [];
         checkInsSnapshot.forEach((doc) => {
-          const data = doc.data()
+          const data = doc.data();
           if (data.checkInTime) {
-            let checkInTime
+            let checkInTime;
             if (data.checkInTime.toDate) {
-              checkInTime = data.checkInTime.toDate()
+              checkInTime = data.checkInTime.toDate();
             } else if (data.checkInTime.seconds) {
-              checkInTime = new Date(data.checkInTime.seconds * 1000)
+              checkInTime = new Date(data.checkInTime.seconds * 1000);
             } else {
-              checkInTime = new Date(data.checkInTime)
+              checkInTime = new Date(data.checkInTime);
             }
 
             checkIns.push({
@@ -125,21 +142,21 @@ const Payroll = () => {
               time: checkInTime,
               sessionId: data.sessionId,
               isLate: data.isLate || false,
-            })
+            });
           }
-        })
+        });
 
-        const checkOuts = []
+        const checkOuts = [];
         checkOutsSnapshot.forEach((doc) => {
-          const data = doc.data()
+          const data = doc.data();
           if (data.checkOutTime) {
-            let checkOutTime
+            let checkOutTime;
             if (data.checkOutTime.toDate) {
-              checkOutTime = data.checkOutTime.toDate()
+              checkOutTime = data.checkOutTime.toDate();
             } else if (data.checkOutTime.seconds) {
-              checkOutTime = new Date(data.checkOutTime.seconds * 1000)
+              checkOutTime = new Date(data.checkOutTime.seconds * 1000);
             } else {
-              checkOutTime = new Date(data.checkOutTime)
+              checkOutTime = new Date(data.checkOutTime);
             }
 
             checkOuts.push({
@@ -147,50 +164,71 @@ const Payroll = () => {
               time: checkOutTime,
               sessionId: data.sessionId,
               isEarly: data.isEarly || false,
-            })
+            });
           }
-        })
+        });
 
         // Calculate total working hours and overtime
-        let totalWorkingMinutes = 0
-        let totalOvertimeMinutes = 0
+        let totalWorkingMinutes = 0;
+        let totalOvertimeMinutes = 0;
 
         // Match check-ins with check-outs by sessionId
         checkIns.forEach((checkIn) => {
-          const matchingCheckOut = checkOuts.find((checkOut) => checkOut.sessionId === checkIn.sessionId)
+          const matchingCheckOut = checkOuts.find(
+            (checkOut) => checkOut.sessionId === checkIn.sessionId
+          );
 
           if (matchingCheckOut) {
-            const workingMinutes = differenceInMinutes(matchingCheckOut.time, checkIn.time)
+            const workingMinutes = differenceInMinutes(
+              matchingCheckOut.time,
+              checkIn.time
+            );
 
             if (workingMinutes > 0) {
-              totalWorkingMinutes += workingMinutes
+              totalWorkingMinutes += workingMinutes;
 
               // Calculate overtime (assuming 8 hours standard workday)
-              const standardWorkdayMinutes = 8 * 60
+              const standardWorkdayMinutes = 8 * 60;
               if (workingMinutes > standardWorkdayMinutes) {
-                totalOvertimeMinutes += workingMinutes - standardWorkdayMinutes
+                totalOvertimeMinutes += workingMinutes - standardWorkdayMinutes;
               }
             }
           }
-        })
+        });
 
         // Convert minutes to hours and minutes format
-        const totalWorkingHours = Math.floor(totalWorkingMinutes / 60)
-        const remainingWorkingMinutes = totalWorkingMinutes % 60
+        const totalWorkingHours = Math.floor(totalWorkingMinutes / 60);
+        const remainingWorkingMinutes = totalWorkingMinutes % 60;
 
-        const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60)
-        const remainingOvertimeMinutes = totalOvertimeMinutes % 60
-
-        // Check if employee is present today
-        const today = format(new Date(), "yyyy-MM-dd")
-        const isTodayPresent = checkIns.some((checkIn) => format(checkIn.time, "yyyy-MM-dd") === today)
+        const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60);
+        const remainingOvertimeMinutes = totalOvertimeMinutes % 60;
 
         // Calculate compensation
-        const hourlyRate = employeeData.hourlyRate || 0
-        const overtimeRate = employeeData.overtimeRate || hourlyRate * 1.5
-        const regularPay = (totalWorkingHours - totalOvertimeHours) * hourlyRate
-        const overtimePay = totalOvertimeHours * overtimeRate
-        const totalPay = regularPay + overtimePay
+        // Use a default hourly rate if not provided
+        const hourlyRate = employeeData.hourlyRate || 15; // Default to 15 if not set
+        const overtimeRate = employeeData.overtimeRate || hourlyRate * 1.5;
+
+        // Calculate regular pay (excluding overtime)
+        const regularHours = totalWorkingHours - totalOvertimeHours;
+        const regularPay = regularHours > 0 ? regularHours * hourlyRate : 0;
+
+        // Calculate overtime pay
+        const overtimePay = totalOvertimeHours * overtimeRate;
+
+        // Calculate total pay
+        const totalPay = regularPay + overtimePay;
+
+        console.log(
+          `Employee ${employeeData.firstName} ${employeeData.lastName} pay calculation:`,
+          {
+            hourlyRate,
+            totalWorkingHours,
+            totalOvertimeHours,
+            regularPay,
+            overtimePay,
+            totalPay,
+          }
+        );
 
         return {
           id: employeeId,
@@ -199,84 +237,97 @@ const Payroll = () => {
           hours: `${employeeData.workingHours || 40} hours`,
           overtime:
             totalOvertimeMinutes > 0
-              ? `${totalOvertimeHours} hour${totalOvertimeHours !== 1 ? "s" : ""} ${remainingOvertimeMinutes} min${
+              ? `${totalOvertimeHours} hour${
+                  totalOvertimeHours !== 1 ? "s" : ""
+                } ${remainingOvertimeMinutes} min${
                   remainingOvertimeMinutes !== 1 ? "s" : ""
                 }`
               : "None",
-          status: isTodayPresent ? "Present" : "Absent",
           avatar: employeeData.photoURL || "",
           department: employeeData.department || "N/A",
-          totalWorkingTime: `${totalWorkingHours} hour${totalWorkingHours !== 1 ? "s" : ""} ${remainingWorkingMinutes} min${
+          totalWorkingTime: `${totalWorkingHours} hour${
+            totalWorkingHours !== 1 ? "s" : ""
+          } ${remainingWorkingMinutes} min${
             remainingWorkingMinutes !== 1 ? "s" : ""
           }`,
           totalPay: `D${totalPay.toFixed(2)}`,
           email: employeeData.email,
           phoneNumber: employeeData.phoneNumber,
           adminId: currentAdmin.id, // Store the admin ID
-        }
-      })
+        };
+      });
 
-      const employeeList = await Promise.all(employeePromises)
-      setEmployees(employeeList)
-      setError(null)
+      const employeeList = await Promise.all(employeePromises);
+      console.log("Processed employee list with pay data:", employeeList);
+      setEmployees(employeeList);
+      setError(null);
     } catch (err) {
-      console.error("Error fetching employee data:", err)
-      setError("Failed to load employee data. Please try again later.")
+      console.error("Error fetching employee data:", err);
+      setError("Failed to load employee data. Please try again later.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleChangePage = (event, newPage) => {
-    setPage(newPage)
-  }
+    setPage(newPage);
+  };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(Number.parseInt(event.target.value, 10))
-    setPage(1)
-  }
+    setRowsPerPage(Number.parseInt(event.target.value, 10));
+    setPage(1);
+  };
 
   const handleSearch = (event) => {
-    setSearchTerm(event.target.value)
-  }
+    setSearchTerm(event.target.value);
+  };
 
   const handleSelectOne = (event, id) => {
-    const selectedIndex = selected.indexOf(id)
-    let newSelected = []
+    const selectedIndex = selected.indexOf(id);
+    let newSelected = [];
 
     if (selectedIndex === -1) {
-      newSelected = [...selected, id]
+      newSelected = [...selected, id];
     } else {
-      newSelected = selected.filter((itemId) => itemId !== id)
+      newSelected = selected.filter((itemId) => itemId !== id);
     }
 
-    setSelected(newSelected)
-    setSelectAll(newSelected.length === filteredEmployees.length)
-  }
+    setSelected(newSelected);
+    setSelectAll(newSelected.length === filteredEmployees.length);
+  };
 
-  const isSelected = (id) => selected.indexOf(id) !== -1
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
+  const isSelected = (id) => selected.indexOf(id) !== -1;
 
   const filteredEmployees = employees.filter(
     (employee) =>
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.department?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Calculate pagination
-  const indexOfLastEmployee = page * rowsPerPage
-  const indexOfFirstEmployee = indexOfLastEmployee - rowsPerPage
-  const currentEmployees = filteredEmployees.slice(indexOfFirstEmployee, indexOfLastEmployee)
+  const indexOfLastEmployee = page * rowsPerPage;
+  const indexOfFirstEmployee = indexOfLastEmployee - rowsPerPage;
+  const currentEmployees = filteredEmployees.slice(
+    indexOfFirstEmployee,
+    indexOfLastEmployee
+  );
 
   // Get initials for avatar fallback
   const getInitials = (name) => {
-    if (!name) return ""
-    const parts = name.split(" ")
-    return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || ""}`.toUpperCase()
-  }
+    if (!name) return "";
+    const parts = name.split(" ");
+    return `${parts[0]?.charAt(0) || ""}${
+      parts[1]?.charAt(0) || ""
+    }`.toUpperCase();
+  };
 
   return (
     <Box sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
-      <Paper sx={{ p: 3, borderRadius: 2 }}>
+      <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
         <Box
           sx={{
             display: "flex",
@@ -293,7 +344,10 @@ const Payroll = () => {
               Manage all payrolls here.
             </Typography>
           </Box>
-          <CustomButton title={"Export All"} style={"text-white w-[110px] h-[40px]"} />
+          <CustomButton
+            title={"Export All"}
+            style={"text-white w-[110px] h-[40px]"}
+          />
         </Box>
 
         {error && (
@@ -302,174 +356,184 @@ const Payroll = () => {
           </Alert>
         )}
 
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="subtitle1" fontWeight="bold">
-            Employees Payroll Reports
-          </Typography>
+        <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
+          <Tab label="Payroll Summary" />
+          <Tab label="Employee Details" />
+        </Tabs>
+      </Paper>
 
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <TextField
-              placeholder="Search..."
-              size="small"
-              value={searchTerm}
-              onChange={handleSearch}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ width: 220 }}
-            />
+      {activeTab === 0 ? (
+        <PayrollSummary employees={employees} loading={loading} />
+      ) : (
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight="bold">
+              Employees Payroll Reports
+            </Typography>
 
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-              <Select
-                value={rowsPerPage.toString()}
-                onChange={(e) => handleChangeRowsPerPage(e)}
-                renderValue={(value) => `Show: ${value}`}
-                IconComponent={KeyboardArrowDownIcon}
-              >
-                <MenuItem value="10">10</MenuItem>
-                <MenuItem value="25">25</MenuItem>
-                <MenuItem value="50">50</MenuItem>
-                <MenuItem value="100">100</MenuItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField
+                placeholder="Search..."
+                size="small"
+                value={searchTerm}
+                onChange={handleSearch}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ width: 220 }}
+              />
+
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <Select
+                  value={rowsPerPage.toString()}
+                  onChange={(e) => handleChangeRowsPerPage(e)}
+                  renderValue={(value) => `Show: ${value}`}
+                  IconComponent={KeyboardArrowDownIcon}
+                >
+                  <MenuItem value="10">10</MenuItem>
+                  <MenuItem value="25">25</MenuItem>
+                  <MenuItem value="50">50</MenuItem>
+                  <MenuItem value="100">100</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
           </Box>
-        </Box>
 
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <>
-            <TableContainer component={Paper} elevation={0} sx={{ mb: 2 }}>
-              <Table>
-                <TableHead sx={{ bgcolor: "#f9f9f9" }}>
-                  <TableRow>
-                    <TableCell padding="checkbox"></TableCell>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Employee Name</TableCell>
-                    <TableCell>Comp/Hour</TableCell>
-                    <TableCell>Hours/wk</TableCell>
-                    <TableCell>Overtime</TableCell>
-                    <TableCell>Status</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {currentEmployees.map((employee, index) => {
-                    const isItemSelected = isSelected(employee.id)
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              <TableContainer component={Paper} elevation={0} sx={{ mb: 2 }}>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#f9f9f9" }}>
+                    <TableRow>
+                      <TableCell padding="checkbox"></TableCell>
+                      <TableCell>ID</TableCell>
+                      <TableCell>Employee Name</TableCell>
+                      <TableCell>Comp/Hour</TableCell>
+                      <TableCell>Hours/wk</TableCell>
+                      <TableCell>Overtime</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {currentEmployees.map((employee, index) => {
+                      const isItemSelected = isSelected(employee.id);
 
-                    return (
-                      <TableRow
-                        key={employee.id}
-                        hover
-                        selected={isItemSelected}
-                        onClick={(event) => handleSelectOne(event, employee.id)}
-                      >
-                        <TableCell padding="checkbox"></TableCell>
-                        <TableCell>{indexOfFirstEmployee + index + 1}</TableCell>
-                        <TableCell>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1.5,
-                              cursor: "pointer",
-                              "&:hover": {
-                                color: "#009688",
-                              },
-                            }}
-                            onClick={() => navigate(`/payroll/payroll-detail/${employee.id}?adminId=${employee.adminId}`)}
-                          >
-                            {employee.avatar ? (
-                              <Avatar src={employee.avatar} sx={{ width: 36, height: 36 }} />
+                      return (
+                        <TableRow
+                          key={employee.id}
+                          hover
+                          selected={isItemSelected}
+                          onClick={(event) =>
+                            handleSelectOne(event, employee.id)
+                          }
+                        >
+                          <TableCell padding="checkbox"></TableCell>
+                          <TableCell>
+                            {indexOfFirstEmployee + index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                                cursor: "pointer",
+                                "&:hover": {
+                                  color: "#009688",
+                                },
+                              }}
+                              onClick={() =>
+                                navigate(
+                                  `/payroll/payroll-detail/${employee.id}?adminId=${employee.adminId}`
+                                )
+                              }
+                            >
+                              {employee.avatar ? (
+                                <Avatar
+                                  src={employee.avatar}
+                                  sx={{ width: 36, height: 36 }}
+                                />
+                              ) : (
+                                <Avatar
+                                  sx={{
+                                    width: 36,
+                                    height: 36,
+                                    bgcolor: "#3DC296",
+                                  }}
+                                >
+                                  {getInitials(employee.name)}
+                                </Avatar>
+                              )}
+                              {employee.name}
+                            </Box>
+                          </TableCell>
+                          <TableCell>{employee.comp}</TableCell>
+                          <TableCell>{employee.hours}</TableCell>
+                          <TableCell>{employee.overtime}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {currentEmployees.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                          {filteredEmployees.length === 0 ? (
+                            searchTerm ? (
+                              <Typography>
+                                No employees found matching "{searchTerm}"
+                              </Typography>
                             ) : (
-                              <Avatar sx={{ width: 36, height: 36, bgcolor: "#3DC296" }}>
-                                {getInitials(employee.name)}
-                              </Avatar>
-                            )}
-                            {employee.name}
-                          </Box>
-                        </TableCell>
-                        <TableCell>{employee.comp}</TableCell>
-                        <TableCell>{employee.hours}</TableCell>
-                        <TableCell>{employee.overtime}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={employee.status}
-                            size="small"
-                            sx={{
-                              bgcolor: "white",
-                              paddingX: 1,
-                              borderRadius: 1,
-                              "&::before": {
-                                content: '""',
-                                display: "inline-block",
-                                width: "8px",
-                                height: "8px",
-                                borderRadius: "50%",
-                                backgroundColor: employee.status === "Present" ? "#3DC296" : "#E74C3C",
-                                marginRight: "4px",
-                              },
-                            }}
-                          />
+                              <Typography>No employees found</Typography>
+                            )
+                          ) : (
+                            <Typography>No employees on this page</Typography>
+                          )}
                         </TableCell>
                       </TableRow>
-                    )
-                  })}
-                  {currentEmployees.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
-                        {filteredEmployees.length === 0 ? (
-                          searchTerm ? (
-                            <Typography>No employees found matching "{searchTerm}"</Typography>
-                          ) : (
-                            <Typography>No employees found</Typography>
-                          )
-                        ) : (
-                          <Typography>No employees on this page</Typography>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                Showing {indexOfFirstEmployee + 1}-{Math.min(indexOfLastEmployee, filteredEmployees.length)} from{" "}
-                {filteredEmployees.length}
-              </Typography>
-              <Pagination
-                count={Math.ceil(filteredEmployees.length / rowsPerPage)}
-                page={page}
-                onChange={handleChangePage}
-                color="primary"
-                shape="rounded"
-              />
-            </Box>
-          </>
-        )}
-      </Paper>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  Showing {indexOfFirstEmployee + 1}-
+                  {Math.min(indexOfLastEmployee, filteredEmployees.length)} from{" "}
+                  {filteredEmployees.length}
+                </Typography>
+                <Pagination
+                  count={Math.ceil(filteredEmployees.length / rowsPerPage)}
+                  page={page}
+                  onChange={handleChangePage}
+                  color="primary"
+                  shape="rounded"
+                />
+              </Box>
+            </>
+          )}
+        </Paper>
+      )}
     </Box>
-  )
-}
+  );
+};
 
-export default Payroll
+export default Payroll;

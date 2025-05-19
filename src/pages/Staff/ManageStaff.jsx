@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import Paper from "@mui/material/Paper";
@@ -16,7 +18,15 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Button from "@mui/material/Button";
 
 // Import Firebase
-import { collection, getDocs, deleteDoc, doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  deleteDoc,
+  doc,
+  getDoc,
+  query,
+  where,
+} from "firebase/firestore";
 import { firestoreDb } from "../../config/firebase.jsx";
 import { getAuth } from "firebase/auth";
 
@@ -70,9 +80,14 @@ export default function ManageStaff() {
       if (!currentAdmin) return;
 
       setLoading(true);
-      // Get employees from the admin's subcollection
-      const employeesCollection = collection(firestoreDb, "admins", currentAdmin.id, "employees");
-      const employeeSnapshot = await getDocs(employeesCollection);
+      // Get employees from the main employees collection
+      // Filter by adminId to get employees created by this admin
+      const employeesCollection = collection(firestoreDb, "employees");
+      const q = query(
+        employeesCollection,
+        where("adminId", "==", currentAdmin.id)
+      );
+      const employeeSnapshot = await getDocs(q);
 
       const employeeList = employeeSnapshot.docs.map((doc, index) => {
         const data = doc.data();
@@ -81,7 +96,6 @@ export default function ManageStaff() {
           firestoreId: doc.id, // Preserve original ID for edit/delete
           name: `${data.firstName} ${data.lastName}`,
           department: data.department || "Not specified",
-          status: "Present",
           profileImageUrl: data.profileImageUrl || "",
           firstName: data.firstName,
           lastName: data.lastName,
@@ -118,8 +132,8 @@ export default function ManageStaff() {
         return;
       }
 
-      // Delete from the admin's employees subcollection
-      await deleteDoc(doc(firestoreDb, "admins", currentAdmin.id, "employees", selectedEmployeeId));
+      // Delete from the main employees collection
+      await deleteDoc(doc(firestoreDb, "employees", selectedEmployeeId));
       fetchEmployees();
     } catch (error) {
       console.error("Error deleting employee: ", error);
@@ -166,11 +180,6 @@ export default function ManageStaff() {
     { field: "department", headerName: "Department", width: 150 },
     { field: "designation", headerName: "Designation", width: 150 },
     {
-      field: "status",
-      headerName: "Status",
-      width: 120,
-    },
-    {
       field: "attendanceReport",
       headerName: "Attendance Report",
       width: 180,
@@ -180,7 +189,11 @@ export default function ManageStaff() {
             style={"mt-5 w-[120px] text-white text-xs hover:bg-gray-700"}
             title={"View Details"}
             icon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
-            onClick={() => navigation(`/reports?id=${params.row.firestoreId}&adminId=${params.row.adminId}`)}
+            onClick={() =>
+              navigation(
+                `/reports?id=${params.row.firestoreId}&adminId=${params.row.adminId}`
+              )
+            }
           />
         </div>
       ),
@@ -215,7 +228,7 @@ export default function ManageStaff() {
         />
       </div>
 
-      <Paper sx={{ height: 500, width: "100%", marginTop: 5, paddingLeft: 2 }}>
+      <Paper sx={{ width: "100%", marginTop: 5, paddingLeft: 2 }}>
         <div className="flex justify-between items-center p-5 border-b border-[#dadada]">
           <h1 className="font-bold">Employees</h1>
           <button

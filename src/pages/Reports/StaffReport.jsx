@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import {
   Paper,
   Avatar,
@@ -25,7 +25,7 @@ import {
   DialogTitle,
   Snackbar,
   Alert,
-} from "@mui/material";
+} from "@mui/material"
 import {
   ArrowBack as ArrowBackIcon,
   QrCode,
@@ -34,206 +34,164 @@ import {
   FileDownload as ExportIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
-} from "@mui/icons-material";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  updateDoc,
-  Timestamp,
-} from "firebase/firestore";
-import { firestoreDb } from "../../config/firebase.jsx";
-import { getAuth } from "firebase/auth";
-import InputField from "../../ui_components/InputField.jsx";
-import assets from "../../constants/assets.jsx";
-import AttendanceReportCard from "../../ui_components/AttendanceReportCard.jsx";
-import AttendanceChart from "../../components/AttendanceChart.jsx";
-import QrCodeDialog from "../../ui_components/QrDialog.jsx";
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  isWithinInterval,
-  differenceInMinutes,
-} from "date-fns";
+} from "@mui/icons-material"
+import { collection, doc, getDoc, getDocs, query, where, updateDoc, Timestamp } from "firebase/firestore"
+import { firestoreDb } from "../../config/firebase.jsx"
+import { getAuth } from "firebase/auth"
+import InputField from "../../ui_components/InputField.jsx"
+import assets from "../../constants/assets.jsx"
+import AttendanceReportCard from "../../ui_components/AttendanceReportCard.jsx"
+import AttendanceChart from "../../components/AttendanceChart.jsx"
+import QrCodeDialog from "../../ui_components/QrDialog.jsx"
+import { format, startOfMonth, endOfMonth, isWithinInterval, differenceInMinutes } from "date-fns"
 
 export default function Reports() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [employee, setEmployee] = useState(null);
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [employee, setEmployee] = useState(null)
+  const [employees, setEmployees] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
   // eslint-disable-next-line no-unused-vars
-  const [selected, setSelected] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [formValues, setFormValues] = useState({});
-  const [chartData, setChartData] = useState([]);
+  const [selected, setSelected] = useState([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [qrDialogOpen, setQrDialogOpen] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [editMode, setEditMode] = useState(false)
+  const [formValues, setFormValues] = useState({})
+  const [chartData, setChartData] = useState([])
   const [attendanceSummary, setAttendanceSummary] = useState({
     present: 0,
     absent: 0,
     onTime: 0,
     overtime: 0,
     totalWorkingHours: 0,
-  });
-  const [selectedMonth, setSelectedMonth] = useState(
-    format(new Date(), "MMMM")
-  );
+  })
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "MMMM"))
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
-  });
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [currentAdmin, setCurrentAdmin] = useState(null);
+  })
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [currentAdmin, setCurrentAdmin] = useState(null)
 
-  // Get employee ID and admin ID from URL parameters
-  const queryParams = new URLSearchParams(location.search);
-  const employeeId = queryParams.get("id");
-  const adminId = queryParams.get("adminId");
+  // Get employee ID from URL parameters
+  const queryParams = new URLSearchParams(location.search)
+  const employeeId = queryParams.get("id")
 
   // Get the current admin user
   useEffect(() => {
     const fetchCurrentAdmin = async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      const auth = getAuth()
+      const user = auth.currentUser
 
       if (user) {
         try {
           // Get the admin document
-          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid));
+          const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid))
           if (adminDoc.exists()) {
-            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() });
+            setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() })
           } else {
-            console.error("Admin document not found");
-            setError("Admin account not found. Please contact support.");
+            console.error("Admin document not found")
+            setError("Admin account not found. Please contact support.")
           }
         } catch (error) {
-          console.error("Error fetching admin data:", error);
-          setError("Failed to load admin data. Please try again.");
+          console.error("Error fetching admin data:", error)
+          setError("Failed to load admin data. Please try again.")
         }
       } else {
-        setError("You must be logged in as an admin to view this page.");
+        setError("You must be logged in as an admin to view this page.")
       }
-    };
+    }
 
-    fetchCurrentAdmin();
-  }, []);
+    fetchCurrentAdmin()
+  }, [])
 
   // Fetch employee data or all employees
   useEffect(() => {
     if (currentAdmin) {
       if (employeeId) {
-        fetchSingleEmployee();
+        fetchSingleEmployee()
       } else {
-        fetchAllEmployees();
+        fetchAllEmployees()
       }
     }
-  }, [employeeId, currentAdmin]);
+  }, [employeeId, currentAdmin])
 
   // Fetch attendance data when employee changes
   useEffect(() => {
     if (employee) {
-      fetchAttendanceData();
+      fetchAttendanceData()
     }
-  }, [employee, selectedMonth]);
+  }, [employee, selectedMonth])
 
   const fetchSingleEmployee = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
 
-      // Verify the admin has access to this employee
-      if (adminId && adminId !== currentAdmin.id) {
-        setError("You don't have permission to view this employee");
-        return;
-      }
-
-      // Get the employee from the admin's subcollection
-      const employeeDoc = await getDoc(
-        doc(firestoreDb, "admins", currentAdmin.id, "employees", employeeId)
-      );
+      // Get the employee directly from the employees collection
+      const employeeDoc = await getDoc(doc(firestoreDb, "employees", employeeId))
 
       if (employeeDoc.exists()) {
-        const data = employeeDoc.data();
+        const data = employeeDoc.data()
         const employeeData = {
           ...data,
           id: employeeDoc.id,
           name: `${data.firstName} ${data.lastName}`,
-          adminId: currentAdmin.id,
-        };
-        setEmployee(employeeData);
-        setFormValues(employeeData);
+        }
+        setEmployee(employeeData)
+        setFormValues(employeeData)
       } else {
-        setError(
-          "Employee not found or you don't have permission to view this employee"
-        );
+        setError("Employee not found")
       }
     } catch (err) {
-      console.error("Error fetching employee data:", err);
-      setError("Failed to load employee data");
+      console.error("Error fetching employee data:", err)
+      setError("Failed to load employee data")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const fetchAttendanceData = async () => {
     try {
-      if (!employee) return;
+      if (!employee) return
 
       // Get the selected month's date range
-      const currentYear = new Date().getFullYear();
-      const monthIndex = new Date(
-        `${selectedMonth} 1, ${currentYear}`
-      ).getMonth();
-      const firstDay = startOfMonth(new Date(currentYear, monthIndex));
-      const lastDay = endOfMonth(new Date(currentYear, monthIndex));
+      const currentYear = new Date().getFullYear()
+      const monthIndex = new Date(`${selectedMonth} 1, ${currentYear}`).getMonth()
+      const firstDay = startOfMonth(new Date(currentYear, monthIndex))
+      const lastDay = endOfMonth(new Date(currentYear, monthIndex))
 
-      console.log(
-        `Fetching attendance data for ${format(
-          firstDay,
-          "yyyy-MM-dd"
-        )} to ${format(lastDay, "yyyy-MM-dd")}`
-      );
+      console.log(`Fetching attendance data for ${format(firstDay, "yyyy-MM-dd")} to ${format(lastDay, "yyyy-MM-dd")}`)
 
       // Fetch check-ins for this employee
-      const checkInsRef = collection(firestoreDb, "CheckIns");
-      const checkInsQuery = query(
-        checkInsRef,
-        where("employeeId", "==", employeeId)
-      );
-      const checkInsSnapshot = await getDocs(checkInsQuery);
+      const checkInsRef = collection(firestoreDb, "CheckIns")
+      const checkInsQuery = query(checkInsRef, where("employeeId", "==", employeeId))
+      const checkInsSnapshot = await getDocs(checkInsQuery)
 
       // Fetch check-outs for this employee
-      const checkOutsRef = collection(firestoreDb, "CheckOuts");
-      const checkOutsQuery = query(
-        checkOutsRef,
-        where("employeeId", "==", employeeId)
-      );
-      const checkOutsSnapshot = await getDocs(checkOutsQuery);
+      const checkOutsRef = collection(firestoreDb, "CheckOuts")
+      const checkOutsQuery = query(checkOutsRef, where("employeeId", "==", employeeId))
+      const checkOutsSnapshot = await getDocs(checkOutsQuery)
 
       // Process check-ins and check-outs
-      const checkIns = [];
-      const checkOuts = [];
+      const checkIns = []
+      const checkOuts = []
 
       checkInsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        let checkInTime;
+        const data = doc.data()
+        let checkInTime
 
         if (data.checkInTime) {
           if (data.checkInTime.toDate) {
-            checkInTime = data.checkInTime.toDate();
+            checkInTime = data.checkInTime.toDate()
           } else if (data.checkInTime.seconds) {
-            checkInTime = new Date(data.checkInTime.seconds * 1000);
+            checkInTime = new Date(data.checkInTime.seconds * 1000)
           } else {
-            checkInTime = new Date(data.checkInTime);
+            checkInTime = new Date(data.checkInTime)
           }
 
           checkIns.push({
@@ -242,59 +200,55 @@ export default function Reports() {
             isLate: data.isLate || false,
             lateMinutes: data.lateMinutes || 0,
             date: format(checkInTime, "yyyy-MM-dd"),
-          });
+          })
         }
-      });
+      })
 
       checkOutsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        let checkOutTime;
+        const data = doc.data()
+        let checkOutTime
 
         if (data.checkOutTime) {
           if (data.checkOutTime.toDate) {
-            checkOutTime = data.checkOutTime.toDate();
+            checkOutTime = data.checkOutTime.toDate()
           } else if (data.checkOutTime.seconds) {
-            checkOutTime = new Date(data.checkOutTime.seconds * 1000);
+            checkOutTime = new Date(data.checkOutTime.seconds * 1000)
           } else {
-            checkOutTime = new Date(data.checkOutTime);
+            checkOutTime = new Date(data.checkOutTime)
           }
 
           checkOuts.push({
             id: doc.id,
             time: checkOutTime,
             date: format(checkOutTime, "yyyy-MM-dd"),
-          });
+          })
         }
-      });
+      })
 
-      console.log(
-        `Found ${checkIns.length} check-ins and ${checkOuts.length} check-outs`
-      );
+      console.log(`Found ${checkIns.length} check-ins and ${checkOuts.length} check-outs`)
 
       // Filter for the selected month
       const monthlyCheckIns = checkIns.filter((checkIn) =>
-        isWithinInterval(checkIn.time, { start: firstDay, end: lastDay })
-      );
+        isWithinInterval(checkIn.time, { start: firstDay, end: lastDay }),
+      )
 
       const monthlyCheckOuts = checkOuts.filter((checkOut) =>
-        isWithinInterval(checkOut.time, { start: firstDay, end: lastDay })
-      );
+        isWithinInterval(checkOut.time, { start: firstDay, end: lastDay }),
+      )
 
-      console.log(
-        `${monthlyCheckIns.length} check-ins and ${monthlyCheckOuts.length} check-outs in selected month`
-      );
+      console.log(`${monthlyCheckIns.length} check-ins and ${monthlyCheckOuts.length} check-outs in selected month`)
 
       // Calculate working hours by matching check-ins with check-outs
-      let totalWorkingMinutes = 0;
-      let totalLateMinutes = 0;
-      let presentDays = 0;
-      let onTimeDays = 0;
+      let totalWorkingMinutes = 0
+      let totalLateMinutes = 0
+      let presentDays = 0
+      let onTimeDays = 0
       // Get the employee's creation date
       const employeeCreationDate = employee.createdAt
         ? employee.createdAt.toDate
           ? employee.createdAt.toDate()
           : new Date(employee.createdAt.seconds * 1000)
-        : new Date(currentYear, monthIndex, 1); // Fallback to first day of current month
+        : new Date(currentYear, monthIndex, 1) // Fallback to first day of current month
 
       // Calculate working days from employee creation date or start of month (whichever is later)
       const startDateForCalculation = isWithinInterval(employeeCreationDate, {
@@ -302,98 +256,93 @@ export default function Reports() {
         end: lastDay,
       })
         ? employeeCreationDate
-        : firstDay;
+        : firstDay
 
-      const today = new Date();
+      const today = new Date()
       const endDateForCalculation = isWithinInterval(today, {
         start: firstDay,
         end: lastDay,
       })
         ? today
-        : lastDay;
+        : lastDay
 
       // Count actual working days (excluding weekends)
-      let workingDays = 0;
-      let currentDate = new Date(startDateForCalculation);
+      let workingDays = 0
+      const currentDate = new Date(startDateForCalculation)
       while (currentDate <= endDateForCalculation) {
-        const dayOfWeek = currentDate.getDay();
+        const dayOfWeek = currentDate.getDay()
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
           // Not weekend (0 = Sunday, 6 = Saturday)
-          workingDays++;
+          workingDays++
         }
-        currentDate.setDate(currentDate.getDate() + 1);
+        currentDate.setDate(currentDate.getDate() + 1)
       }
-      const dailyData = {};
+      const dailyData = {}
 
       // Process each check-in
       monthlyCheckIns.forEach((checkIn) => {
         // Find matching check-out for the same day
-        const matchingCheckOut = monthlyCheckOuts.find(
-          (checkOut) => checkOut.date === checkIn.date
-        );
+        const matchingCheckOut = monthlyCheckOuts.find((checkOut) => checkOut.date === checkIn.date)
 
         if (matchingCheckOut) {
           // Calculate working minutes for this day
-          const workingMinutes = differenceInMinutes(
-            matchingCheckOut.time,
-            checkIn.time
-          );
+          const workingMinutes = differenceInMinutes(matchingCheckOut.time, checkIn.time)
 
           if (workingMinutes > 0) {
-            totalWorkingMinutes += workingMinutes;
+            totalWorkingMinutes += workingMinutes
 
             // Track present days
-            presentDays++;
+            presentDays++
 
             // Track on-time days
             if (!checkIn.isLate) {
-              onTimeDays++;
+              onTimeDays++
             } else {
-              totalLateMinutes += checkIn.lateMinutes;
+              totalLateMinutes += checkIn.lateMinutes
             }
 
             // Add to daily data
-            const day = Number.parseInt(format(checkIn.time, "d"));
+            const day = Number.parseInt(format(checkIn.time, "d"))
             dailyData[day] = {
               presents: 1,
               lateArrivals: checkIn.isLate ? 1 : 0,
               absents: 0,
               workingHours: Math.round((workingMinutes / 60) * 10) / 10, // Round to 1 decimal place
-            };
+            }
           }
         } else {
           // Check-in without check-out still counts as present
-          presentDays++;
+          presentDays++
 
           if (!checkIn.isLate) {
-            onTimeDays++;
+            onTimeDays++
           } else {
-            totalLateMinutes += checkIn.lateMinutes;
+            totalLateMinutes += checkIn.lateMinutes
           }
 
           // Add to daily data
-          const day = Number.parseInt(format(checkIn.time, "d"));
+          const day = Number.parseInt(format(checkIn.time, "d"))
           dailyData[day] = {
             presents: 1,
             lateArrivals: checkIn.isLate ? 1 : 0,
             absents: 0,
             workingHours: 0, // No working hours calculated without check-out
-          };
+          }
         }
-      });
+      })
 
       // Calculate absents
-      const absentDays = workingDays - presentDays;
+      const absentDays = workingDays - presentDays
 
       // Fill in absent days in the daily data
-      const startDay = startDateForCalculation.getDate();
-      const endDay = endDateForCalculation.getDate();
+      const startDay = startDateForCalculation.getDate()
+      const endDay = endDateForCalculation.getDate()
       for (let day = startDay; day <= endDay; day++) {
         if (!dailyData[day]) {
           // Check if this day is a weekend
-          const date = new Date(currentYear, monthIndex, day);
-          const dayOfWeek = date.getDay();
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // 0 = Sunday, 6 = Saturday
+          const date = new Date(currentYear, monthIndex, day)
+          const dayOfWeek = date.getDay()
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 // 0 = Sunday, 6 = Saturday
 
           if (!isWeekend) {
             dailyData[day] = {
@@ -401,7 +350,7 @@ export default function Reports() {
               lateArrivals: 0,
               absents: 1,
               workingHours: 0,
-            };
+            }
           }
         }
       }
@@ -411,20 +360,16 @@ export default function Reports() {
         presents: dailyData[day].presents,
         lateArrivals: dailyData[day].lateArrivals,
         absents: dailyData[day].absents,
-      }));
+      }))
 
       // Sort chart data by day
-      chartDataArray.sort(
-        (a, b) => Number.parseInt(a.name) - Number.parseInt(b.name)
-      );
+      chartDataArray.sort((a, b) => Number.parseInt(a.name) - Number.parseInt(b.name))
 
       // Calculate on-time percentage
-      const onTimePercentage =
-        presentDays > 0 ? Math.round((onTimeDays / presentDays) * 100) : 0;
+      const onTimePercentage = presentDays > 0 ? Math.round((onTimeDays / presentDays) * 100) : 0
 
       // Convert total working minutes to hours
-      const totalWorkingHours =
-        Math.round((totalWorkingMinutes / 60) * 10) / 10;
+      const totalWorkingHours = Math.round((totalWorkingMinutes / 60) * 10) / 10
 
       // Update state
       setAttendanceSummary({
@@ -433,74 +378,64 @@ export default function Reports() {
         onTime: `${onTimePercentage}%`,
         overtime: `${totalLateMinutes} min`,
         totalWorkingHours: totalWorkingHours,
-      });
+      })
 
-      setChartData(chartDataArray);
+      setChartData(chartDataArray)
 
       console.log(
-        `Attendance summary: ${presentDays} present, ${absentDays} absent, ${onTimePercentage}% on time, ${totalWorkingHours} working hours`
-      );
+        `Attendance summary: ${presentDays} present, ${absentDays} absent, ${onTimePercentage}% on time, ${totalWorkingHours} working hours`,
+      )
     } catch (err) {
-      console.error("Error fetching attendance data:", err);
+      console.error("Error fetching attendance data:", err)
       setSnackbar({
         open: true,
         message: "Failed to load attendance data",
         severity: "error",
-      });
+      })
     }
-  };
+  }
 
   const fetchAllEmployees = async () => {
     try {
-      if (!currentAdmin) return;
+      if (!currentAdmin) return
 
-      setLoading(true);
-      // Get employees from the admin's subcollection
-      const employeesRef = collection(
-        firestoreDb,
-        "admins",
-        currentAdmin.id,
-        "employees"
-      );
-      const employeesSnapshot = await getDocs(employeesRef);
+      setLoading(true)
 
-      const employeeList = [];
-      const checkInsRef = collection(firestoreDb, "CheckIns");
-      const checkOutsRef = collection(firestoreDb, "CheckOuts");
+      // Get all employees from the main employees collection
+      const employeesRef = collection(firestoreDb, "employees")
+      const employeesSnapshot = await getDocs(employeesRef)
+
+      const employeeList = []
+      const checkInsRef = collection(firestoreDb, "CheckIns")
+      const checkOutsRef = collection(firestoreDb, "CheckOuts")
 
       for (const doc of employeesSnapshot.docs) {
-        const data = doc.data();
-        const employeeId = doc.id;
+        const data = doc.data()
+        const employeeId = doc.id
 
         // Fetch check-ins for this employee
-        const checkInsQuery = query(
-          checkInsRef,
-          where("employeeId", "==", employeeId)
-        );
-        const checkInsSnapshot = await getDocs(checkInsQuery);
+        const checkInsQuery = query(checkInsRef, where("employeeId", "==", employeeId))
+        const checkInsSnapshot = await getDocs(checkInsQuery)
 
         // Fetch check-outs for this employee
-        const checkOutsQuery = query(
-          checkOutsRef,
-          where("employeeId", "==", employeeId)
-        );
-        const checkOutsSnapshot = await getDocs(checkOutsQuery);
+        const checkOutsQuery = query(checkOutsRef, where("employeeId", "==", employeeId))
+        const checkOutsSnapshot = await getDocs(checkOutsQuery)
 
         // Process check-ins and check-outs
-        const checkIns = [];
-        const checkOuts = [];
+        const checkIns = []
+        const checkOuts = []
 
         checkInsSnapshot.forEach((doc) => {
-          const data = doc.data();
-          let checkInTime;
+          const data = doc.data()
+          let checkInTime
 
           if (data.checkInTime) {
             if (data.checkInTime.toDate) {
-              checkInTime = data.checkInTime.toDate();
+              checkInTime = data.checkInTime.toDate()
             } else if (data.checkInTime.seconds) {
-              checkInTime = new Date(data.checkInTime.seconds * 1000);
+              checkInTime = new Date(data.checkInTime.seconds * 1000)
             } else {
-              checkInTime = new Date(data.checkInTime);
+              checkInTime = new Date(data.checkInTime)
             }
 
             checkIns.push({
@@ -509,77 +444,112 @@ export default function Reports() {
               isLate: data.isLate || false,
               lateMinutes: data.lateMinutes || 0,
               date: format(checkInTime, "yyyy-MM-dd"),
-            });
+            })
           }
-        });
+        })
 
         checkOutsSnapshot.forEach((doc) => {
-          const data = doc.data();
-          let checkOutTime;
+          const data = doc.data()
+          let checkOutTime
 
           if (data.checkOutTime) {
             if (data.checkOutTime.toDate) {
-              checkOutTime = data.checkOutTime.toDate();
+              checkOutTime = data.checkOutTime.toDate()
             } else if (data.checkOutTime.seconds) {
-              checkOutTime = new Date(data.checkOutTime.seconds * 1000);
+              checkOutTime = new Date(data.checkOutTime.seconds * 1000)
             } else {
-              checkOutTime = new Date(data.checkOutTime);
+              checkOutTime = new Date(data.checkOutTime)
             }
 
             checkOuts.push({
               id: doc.id,
               time: checkOutTime,
               date: format(checkOutTime, "yyyy-MM-dd"),
-            });
+            })
           }
-        });
+        })
 
         // Calculate working hours by matching check-ins with check-outs
-        let totalWorkingMinutes = 0;
-        let totalLateMinutes = 0;
-        let presentDays = 0;
+        let totalWorkingMinutes = 0
+        let totalLateMinutes = 0
+        let presentDays = 0
 
         // Process each check-in
         checkIns.forEach((checkIn) => {
           // Find matching check-out for the same day
-          const matchingCheckOut = checkOuts.find(
-            (checkOut) => checkOut.date === checkIn.date
-          );
+          const matchingCheckOut = checkOuts.find((checkOut) => checkOut.date === checkIn.date)
 
           if (matchingCheckOut) {
             // Calculate working minutes for this day
-            const workingMinutes = differenceInMinutes(
-              matchingCheckOut.time,
-              checkIn.time
-            );
+            const workingMinutes = differenceInMinutes(matchingCheckOut.time, checkIn.time)
 
             if (workingMinutes > 0) {
-              totalWorkingMinutes += workingMinutes;
-              presentDays++;
+              totalWorkingMinutes += workingMinutes
+              presentDays++
 
               if (checkIn.isLate) {
-                totalLateMinutes += checkIn.lateMinutes;
+                totalLateMinutes += checkIn.lateMinutes
               }
             }
           } else {
             // Check-in without check-out still counts as present
-            presentDays++;
+            presentDays++
 
             if (checkIn.isLate) {
-              totalLateMinutes += checkIn.lateMinutes;
+              totalLateMinutes += checkIn.lateMinutes
             }
           }
-        });
+        })
 
-        // Calculate absents (assuming 20 working days per month)
-        const absentDays = 20 - presentDays;
+        // Get the employee's creation date
+        const employeeCreationDate = data.createdAt
+          ? data.createdAt.toDate
+            ? data.createdAt.toDate()
+            : new Date(data.createdAt.seconds * 1000)
+          : new Date() // Fallback to today if no creation date
+
+        // Get the current month's date range
+        const currentYear = new Date().getFullYear()
+        const currentMonth = new Date().getMonth()
+        const firstDay = startOfMonth(new Date(currentYear, currentMonth))
+        const lastDay = endOfMonth(new Date(currentYear, currentMonth))
+        const today = new Date()
+
+        // Calculate working days from employee creation date or start of month (whichever is later)
+        const startDateForCalculation = isWithinInterval(employeeCreationDate, {
+          start: firstDay,
+          end: lastDay,
+        })
+          ? employeeCreationDate
+          : firstDay
+
+        const endDateForCalculation = isWithinInterval(today, {
+          start: firstDay,
+          end: lastDay,
+        })
+          ? today
+          : lastDay
+
+        // Count actual working days (excluding weekends)
+        let workingDays = 0
+        const currentDate = new Date(startDateForCalculation)
+        while (currentDate <= endDateForCalculation) {
+          const dayOfWeek = currentDate.getDay()
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            // Not weekend (0 = Sunday, 6 = Saturday)
+            workingDays++
+          }
+          currentDate.setDate(currentDate.getDate() + 1)
+        }
+
+        // Calculate absents based on actual working days
+        const absentDays = workingDays - presentDays
 
         // Convert total working minutes to hours
-        const totalWorkingHours =
-          Math.round((totalWorkingMinutes / 60) * 10) / 10;
+        const totalWorkingHours = Math.round((totalWorkingMinutes / 60) * 10) / 10
 
         // Calculate overtime hours (convert minutes to hours)
-        const overtimeHours = Math.round((totalLateMinutes / 60) * 10) / 10;
+        const overtimeHours = Math.round((totalLateMinutes / 60) * 10) / 10
 
         employeeList.push({
           id: employeeId,
@@ -593,82 +563,75 @@ export default function Reports() {
           absents: absentDays,
           overtime: `${overtimeHours} hour${overtimeHours !== 1 ? "s" : ""}`,
           workingHours: totalWorkingHours,
-          adminId: currentAdmin.id,
-        });
+        })
       }
 
-      setEmployees(employeeList);
+      setEmployees(employeeList)
     } catch (err) {
-      console.error("Error fetching employees data:", err);
-      setError("Failed to load employees data");
+      console.error("Error fetching employees data:", err)
+      setError("Failed to load employees data")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleBack = () => {
-    navigate("/manage-staff");
-  };
+    navigate("/manage-staff")
+  }
 
   const handleViewHistory = (id) => {
-    navigate(`/reports/${id}/history?adminId=${currentAdmin.id}`);
-  };
+    navigate(`/reports/${id}/history`)
+  }
 
   const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
+    setPage(newPage)
+  }
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(Number.parseInt(event.target.value, 10));
-    setPage(0);
-  };
+    setRowsPerPage(Number.parseInt(event.target.value, 10))
+    setPage(0)
+  }
 
-  const isSelected = (id) => selected.indexOf(id) !== -1;
+  const isSelected = (id) => selected.indexOf(id) !== -1
 
   const handleOpenQrDialog = (employee) => {
-    setSelectedEmployee(employee);
-    setQrDialogOpen(true);
-  };
+    setSelectedEmployee(employee)
+    setQrDialogOpen(true)
+  }
 
   const handleCloseQrDialog = () => {
-    setQrDialogOpen(false);
-    setSelectedEmployee(null);
-  };
+    setQrDialogOpen(false)
+    setSelectedEmployee(null)
+  }
 
   const handleEditToggle = () => {
     if (editMode) {
       // If we're exiting edit mode without saving, reset form values
-      setFormValues({ ...employee });
-      setEditMode(false);
+      setFormValues({ ...employee })
+      setEditMode(false)
     } else {
-      setEditMode(true);
+      setEditMode(true)
     }
-  };
+  }
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     setFormValues({
       ...formValues,
       [name]: value,
-    });
-  };
+    })
+  }
 
   const handleSaveChanges = () => {
-    setConfirmDialogOpen(true);
-  };
+    setConfirmDialogOpen(true)
+  }
 
   const confirmSaveChanges = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
 
       // Update employee document in Firestore
-      const employeeRef = doc(
-        firestoreDb,
-        "admins",
-        currentAdmin.id,
-        "employees",
-        employeeId
-      );
+      const employeeRef = doc(firestoreDb, "employees", employeeId)
       await updateDoc(employeeRef, {
         firstName: formValues.firstName,
         lastName: formValues.lastName,
@@ -677,73 +640,66 @@ export default function Reports() {
         bio: formValues.bio,
         phoneNumber: formValues.phoneNumber,
         updatedAt: Timestamp.now(),
-      });
+      })
 
       // Update local state
       setEmployee({
         ...employee,
         ...formValues,
         name: `${formValues.firstName} ${formValues.lastName}`,
-      });
+      })
 
-      setEditMode(false);
-      setConfirmDialogOpen(false);
+      setEditMode(false)
+      setConfirmDialogOpen(false)
 
       setSnackbar({
         open: true,
         message: "Employee information updated successfully",
         severity: "success",
-      });
+      })
     } catch (err) {
-      console.error("Error updating employee:", err);
+      console.error("Error updating employee:", err)
       setSnackbar({
         open: true,
         message: `Failed to update employee: ${err.message}`,
         severity: "error",
-      });
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
+    setSnackbar({ ...snackbar, open: false })
+  }
 
   const handleMonthChange = (e) => {
-    setSelectedMonth(e.target.value);
-  };
+    setSelectedMonth(e.target.value)
+  }
 
   // Get initials for the avatar fallback
   const getInitials = (name) => {
-    if (!name) return "";
-    const parts = name.split(" ");
-    return `${parts[0]?.charAt(0) || ""}${
-      parts[1]?.charAt(0) || ""
-    }`.toUpperCase();
-  };
+    if (!name) return ""
+    const parts = name.split(" ")
+    return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || ""}`.toUpperCase()
+  }
 
   // Filter employees based on search query
   const filteredEmployees = employees.filter(
     (employee) =>
       employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.department.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      employee.department.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height="80vh"
-      >
+      <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
         <CircularProgress />
         <Typography variant="h6" sx={{ ml: 2 }}>
           Loading...
         </Typography>
       </Box>
-    );
+    )
   }
 
   if (error && employeeId) {
@@ -752,16 +708,11 @@ export default function Reports() {
         <Typography variant="h6" color="error">
           {error}
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-          sx={{ mt: 2 }}
-        >
+        <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={handleBack} sx={{ mt: 2 }}>
           Back to Staff Management
         </Button>
       </Box>
-    );
+    )
   }
 
   // If employeeId is provided, show single employee report
@@ -862,16 +813,8 @@ export default function Reports() {
                 </>
               ) : (
                 <>
-                  <InputField
-                    label={"First Name"}
-                    value={employee?.firstName}
-                    disabled
-                  />
-                  <InputField
-                    label={"Last Name"}
-                    value={employee?.lastName}
-                    disabled
-                  />
+                  <InputField label={"First Name"} value={employee?.firstName} disabled />
+                  <InputField label={"Last Name"} value={employee?.lastName} disabled />
                 </>
               )}
             </div>
@@ -933,39 +876,17 @@ export default function Reports() {
                   size="small"
                   type="number"
                   InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">hours</InputAdornment>
-                    ),
+                    endAdornment: <InputAdornment position="end">hours</InputAdornment>,
                   }}
                 />
               </>
             ) : (
               <>
-                <InputField
-                  label={"Department"}
-                  value={employee?.department}
-                  disabled={true}
-                />
-                <InputField
-                  label={"Designation"}
-                  value={employee?.designation}
-                  disabled={true}
-                />
-                <InputField
-                  label={"Bio"}
-                  value={employee?.bio}
-                  disabled={true}
-                />
-                <InputField
-                  label={"Email"}
-                  value={employee?.email}
-                  disabled={true}
-                />
-                <InputField
-                  label={"Phone"}
-                  value={employee?.phoneNumber}
-                  disabled={true}
-                />
+                <InputField label={"Department"} value={employee?.department} disabled={true} />
+                <InputField label={"Designation"} value={employee?.designation} disabled={true} />
+                <InputField label={"Bio"} value={employee?.bio} disabled={true} />
+                <InputField label={"Email"} value={employee?.email} disabled={true} />
+                <InputField label={"Phone"} value={employee?.phoneNumber} disabled={true} />
                 <InputField
                   label={"Working Hours (per week)"}
                   value={`${employee?.workingHours || 40} hours`}
@@ -1019,19 +940,10 @@ export default function Reports() {
             <div className="bg-white p-4 mt-5 rounded-2xl">
               <div className="flex justify-between items-center">
                 <div className="pt-2">
-                  <p className="text-lg font-bold text-[#24282E]">
-                    Attendance Statistics
-                  </p>
-                  <p className="text-sm font-medium text-[#727A90]">
-                    Overview of attendance for {employee.name}.
-                  </p>
+                  <p className="text-lg font-bold text-[#24282E]">Attendance Statistics</p>
+                  <p className="text-sm font-medium text-[#727A90]">Overview of attendance for {employee.name}.</p>
                 </div>
-                <InputField
-                  dropdown={true}
-                  value={selectedMonth}
-                  options={options}
-                  onChange={handleMonthChange}
-                />
+                <InputField dropdown={true} value={selectedMonth} options={options} onChange={handleMonthChange} />
               </div>
               <Divider sx={{ marginY: 2 }} />
               <AttendanceChart data={chartData} />
@@ -1040,32 +952,17 @@ export default function Reports() {
         </div>
 
         {/* QR Code Dialog */}
-        <QrCodeDialog
-          open={qrDialogOpen}
-          onClose={handleCloseQrDialog}
-          employee={selectedEmployee}
-        />
+        <QrCodeDialog open={qrDialogOpen} onClose={handleCloseQrDialog} employee={selectedEmployee} />
 
         {/* Confirmation Dialog */}
-        <Dialog
-          open={confirmDialogOpen}
-          onClose={() => setConfirmDialogOpen(false)}
-        >
+        <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
           <DialogTitle>Confirm Changes</DialogTitle>
           <DialogContent>
-            <Typography>
-              Are you sure you want to save these changes to the employee
-              profile?
-            </Typography>
+            <Typography>Are you sure you want to save these changes to the employee profile?</Typography>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
-            <Button
-              onClick={confirmSaveChanges}
-              variant="contained"
-              color="primary"
-              disabled={loading}
-            >
+            <Button onClick={confirmSaveChanges} variant="contained" color="primary" disabled={loading}>
               {loading ? <CircularProgress size={24} /> : "Save Changes"}
             </Button>
           </DialogActions>
@@ -1078,16 +975,12 @@ export default function Reports() {
           onClose={handleCloseSnackbar}
           anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         >
-          <Alert
-            onClose={handleCloseSnackbar}
-            severity={snackbar.severity}
-            sx={{ width: "100%" }}
-          >
+          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
             {snackbar.message}
           </Alert>
         </Snackbar>
       </div>
-    );
+    )
   }
 
   // If no employeeId is provided, show all employees report
@@ -1187,44 +1080,36 @@ export default function Reports() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredEmployees
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((employee, index) => {
-                  const isItemSelected = isSelected(employee.id);
+              {filteredEmployees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((employee, index) => {
+                const isItemSelected = isSelected(employee.id)
 
-                  return (
-                    <TableRow
-                      hover
-                      role="checkbox"
-                      aria-checked={isItemSelected}
-                      tabIndex={-1}
-                      key={employee.id}
-                      selected={isItemSelected}
-                    >
-                      <TableCell></TableCell>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <Avatar
-                            src={employee.photoURL}
-                            alt={employee.name}
-                            sx={{ width: 36, height: 36, mr: 2 }}
-                          >
-                            {getInitials(employee.name)}
-                          </Avatar>
-                          <Typography variant="body2">
-                            {employee.name}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{employee.department}</TableCell>
-                      <TableCell>{employee.present}</TableCell>
-                      <TableCell>{employee.absents}</TableCell>
-                      <TableCell>{employee.overtime}</TableCell>
-                      <TableCell>{employee.workingHours} hrs</TableCell>
-                    </TableRow>
-                  );
-                })}
+                return (
+                  <TableRow
+                    hover
+                    role="checkbox"
+                    aria-checked={isItemSelected}
+                    tabIndex={-1}
+                    key={employee.id}
+                    selected={isItemSelected}
+                  >
+                    <TableCell></TableCell>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <Avatar src={employee.photoURL} alt={employee.name} sx={{ width: 36, height: 36, mr: 2 }}>
+                          {getInitials(employee.name)}
+                        </Avatar>
+                        <Typography variant="body2">{employee.name}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{employee.department}</TableCell>
+                    <TableCell>{employee.present}</TableCell>
+                    <TableCell>{employee.absents}</TableCell>
+                    <TableCell>{employee.overtime}</TableCell>
+                    <TableCell>{employee.workingHours} hrs</TableCell>
+                  </TableRow>
+                )
+              })}
               {filteredEmployees.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} align="center">
@@ -1248,8 +1133,7 @@ export default function Reports() {
         />
         <Box sx={{ p: 2, borderTop: "1px solid #eee" }}>
           <Typography variant="body2" color="text.secondary">
-            Showing {page * rowsPerPage + 1}-
-            {Math.min((page + 1) * rowsPerPage, filteredEmployees.length)} from{" "}
+            Showing {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, filteredEmployees.length)} from{" "}
             {filteredEmployees.length}
           </Typography>
         </Box>
@@ -1262,16 +1146,12 @@ export default function Reports() {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
     </Box>
-  );
+  )
 }
 
 const options = [
@@ -1287,4 +1167,4 @@ const options = [
   { value: "October", label: "October" },
   { value: "November", label: "November" },
   { value: "December", label: "December" },
-];
+]

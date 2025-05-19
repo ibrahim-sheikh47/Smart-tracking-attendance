@@ -15,8 +15,19 @@ import {
   doc,
 } from "firebase/firestore";
 import EmployeeTable from "../ui_components/Table.jsx";
-import QRCodeGenerator from "../pages/QrCodeGeneratior.jsx";
 import { getAuth } from "firebase/auth";
+// Add the EmployeeModal import at the top of the file
+// Add this line with the other imports
+import EmployeeModal from "../ui_components/EmployeeModal.jsx";
+
+import WeeklyAttendanceChart from "../components/WeeklyAttendanceChart.jsx";
+
+import {
+  generateAttendanceChartData,
+  generateWeeklyAttendanceData,
+} from "../utils/chartDataUtils.jsx";
+
+import AttendanceDasboardChart from "../components/AttendanceDasboardChart.jsx";
 
 const Dashboard = () => {
   const [staffList, setStaffList] = useState([]);
@@ -27,6 +38,16 @@ const Dashboard = () => {
   const [lateArrivals, setLateArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentAdmin, setCurrentAdmin] = useState(null);
+  // Add a new state variable to track which dashboard card is selected
+  const [selectedCard, setSelectedCard] = useState(null);
+  // Add a state for the modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+
+  const [attendanceChartData, setAttendanceChartData] = useState([]);
+  const [weeklyAttendanceData, setWeeklyAttendanceData] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState("12months");
 
   useEffect(() => {
     // Get the current admin user
@@ -77,6 +98,19 @@ const Dashboard = () => {
             // Calculate absents and late arrivals based on today's data
             await calculateAbsentees(staff, todayCheckins);
             await calculateLateArrivals(todayCheckins);
+
+            const lineChartData = generateAttendanceChartData(
+              allCheckIns,
+              staff,
+              selectedPeriod
+            );
+            setAttendanceChartData(lineChartData);
+
+            const barChartData = generateWeeklyAttendanceData(
+              allCheckIns,
+              staff
+            );
+            setWeeklyAttendanceData(barChartData);
           }
         } catch (error) {
           console.error("Error fetching dashboard data:", error);
@@ -291,14 +325,11 @@ const Dashboard = () => {
     try {
       if (!currentAdmin) return [];
 
-      // Get employees from the admin's subcollection
-      const staffRef = collection(
-        firestoreDb,
-        "admins",
-        currentAdmin.uid,
-        "employees"
-      );
-      const data = await getDocs(staffRef);
+      // Get employees from the main employees collection
+      // Filter by adminId to get employees created by this admin if needed
+      const staffRef = collection(firestoreDb, "employees");
+      const q = query(staffRef, where("adminId", "==", currentAdmin.uid));
+      const data = await getDocs(q);
 
       const filteredStaff = data.docs.map((staffDoc) => {
         const docData = staffDoc.data();
@@ -441,6 +472,110 @@ const Dashboard = () => {
     lateArrivals: lateArrivals.length,
   });
 
+  // Replace the handleCardClick function with this updated version
+  const handleCardClick = (cardType) => {
+    let title = "";
+    let employees = [];
+
+    if (cardType === "totalStaff") {
+      title = "All Employees";
+      employees = staffList.map((staff) => ({
+        id: staff.uid,
+        name: `${staff.firstName} ${staff.lastName}`,
+        department: staff.department || "Not specified",
+        designation: staff.designation || "Not specified",
+        email: staff.email || "Not available",
+        phoneNumber: staff.phoneNumber || "Not available",
+        status: "Active",
+        profileImageUrl: staff.profileImageUrl || "",
+      }));
+    } else if (cardType === "checkInsToday") {
+      title = "Employees Checked In Today";
+      const checkedInEmployeeIds = new Set(
+        todayCheckIns.map((checkIn) => checkIn.employeeId)
+      );
+
+      employees = staffList
+        .filter((staff) => checkedInEmployeeIds.has(staff.uid))
+        .map((staff) => {
+          const checkIn = todayCheckIns.find(
+            (ci) => ci.employeeId === staff.uid
+          );
+          const checkInTime = checkIn?.checkInTime?.toDate
+            ? checkIn.checkInTime.toDate().toLocaleTimeString()
+            : "Unknown time";
+
+          return {
+            id: staff.uid,
+            name: `${staff.firstName} ${staff.lastName}`,
+            department: staff.department || "Not specified",
+            designation: staff.designation || "Not specified",
+            email: staff.email || "Not available",
+            phoneNumber: staff.phoneNumber || "Not available",
+            status: "Checked In",
+            checkInTime: checkInTime,
+            profileImageUrl: staff.profileImageUrl || "",
+          };
+        });
+    } else if (cardType === "absentees") {
+      title = "Absent Employees Today";
+      employees = absents.map((staff) => ({
+        id: staff.uid,
+        name: `${staff.firstName} ${staff.lastName}`,
+        department: staff.department || "Not specified",
+        designation: staff.designation || "Not specified",
+        email: staff.email || "Not available",
+        phoneNumber: staff.phoneNumber || "Not available",
+        status: "Absent",
+        profileImageUrl: staff.profileImageUrl || "",
+      }));
+    } else if (cardType === "lateArrivals") {
+      title = "Late Arriving Employees Today";
+      const lateEmployeeIds = new Set(
+        lateArrivals.map((late) => late.employeeId)
+      );
+
+      employees = staffList
+        .filter((staff) => lateEmployeeIds.has(staff.uid))
+        .map((staff) => {
+          const lateArrival = lateArrivals.find(
+            (la) => la.employeeId === staff.uid
+          );
+          const lateMinutes = lateArrival?.lateMinutes || 0;
+          const checkInTime = lateArrival?.checkInTime?.toDate
+            ? lateArrival.checkInTime.toDate().toLocaleTimeString()
+            : "Unknown time";
+
+          return {
+            id: staff.uid,
+            name: `${staff.firstName} ${staff.lastName}`,
+            department: staff.department || "Not specified",
+            designation: staff.designation || "Not specified",
+            email: staff.email || "Not available",
+            phoneNumber: staff.phoneNumber || "Not available",
+            status: `Late (${lateMinutes} mins)`,
+            checkInTime: checkInTime,
+            profileImageUrl: staff.profileImageUrl || "",
+          };
+        });
+    }
+
+    setModalTitle(title);
+    setFilteredEmployees(employees);
+    setModalOpen(true);
+  };
+  const handlePeriodChange = (period) => {
+    setSelectedPeriod(period);
+
+    // Regenerate chart data based on the selected period
+
+    const lineChartData = generateAttendanceChartData(
+      checkIns,
+      staffList,
+      period
+    );
+    setAttendanceChartData(lineChartData);
+  };
   return (
     <div>
       <div className="flex flex-col p-10">
@@ -451,7 +586,7 @@ const Dashboard = () => {
               Overview of all staff activities.
             </h4>
           </div>
-          <QRCodeGenerator />
+          {/* <QRCodeGenerator /> */}
         </div>
 
         <div className="flex mt-10 justify-between">
@@ -459,34 +594,63 @@ const Dashboard = () => {
             title={"Total Staff"}
             value={staffList.length}
             icon={assets.totalStaff}
+            onClick={() => handleCardClick("totalStaff")}
+            isSelected={selectedCard === "totalStaff"}
           />
           <DashboardCard
             title={"Check-ins Today"}
             value={todayCheckIns.length}
             icon={assets.checkInsToday}
+            onClick={() => handleCardClick("checkInsToday")}
+            isSelected={selectedCard === "checkInsToday"}
           />
           <DashboardCard
             title={"Absentees"}
             value={absents.length}
             icon={assets.totalAbsents}
+            onClick={() => handleCardClick("absentees")}
+            isSelected={selectedCard === "absentees"}
           />
           <DashboardCard
             title={"Late Arrivals"}
             value={lateArrivals.length}
             icon={assets.lateArrivals}
+            onClick={() => handleCardClick("lateArrivals")}
+            isSelected={selectedCard === "lateArrivals"}
           />
         </div>
 
+        <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <AttendanceDasboardChart
+              data={attendanceChartData}
+              onPeriodChange={handlePeriodChange}
+            />
+          </div>
+
+          <div>
+            <WeeklyAttendanceChart data={weeklyAttendanceData} />
+          </div>
+        </div>
         <div className="mt-10">
           <EmployeeTable
             staffList={staffList}
             checkIns={checkIns}
             checkOuts={checkOuts}
             absents={absents}
+            lateArrivals={lateArrivals}
             loading={loading}
+            selectedFilter={selectedCard}
           />
         </div>
       </div>
+      {modalOpen && (
+        <EmployeeModal
+          title={modalTitle}
+          employees={filteredEmployees}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
