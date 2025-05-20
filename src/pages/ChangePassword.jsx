@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   updatePassword,
@@ -11,7 +11,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import assets from "../constants/assets.jsx";
 
-const ChangePassword = () => {
+const ChangePassword = ({ onPasswordChanged }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const adminId = location.state?.adminId || sessionStorage.getItem("adminId");
@@ -26,6 +26,10 @@ const ChangePassword = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Hover states for buttons
+  const [hoverCancel, setHoverCancel] = useState(false);
+  const [hoverSubmit, setHoverSubmit] = useState(false);
 
   const togglePasswordVisibility = (field) => {
     switch (field) {
@@ -44,18 +48,14 @@ const ChangePassword = () => {
   };
 
   const validatePasswords = () => {
-    // Check if passwords match
     if (newPassword !== confirmPassword) {
       setError("New passwords do not match");
       return false;
     }
-
-    // Check password length
     if (newPassword.length < 6) {
       setError("Password must be at least 6 characters long");
       return false;
     }
-
     return true;
   };
 
@@ -72,25 +72,19 @@ const ChangePassword = () => {
 
     try {
       const user = auth.currentUser;
-
       if (!user) {
         setError("User not authenticated. Please log in again.");
         setLoading(false);
         return;
       }
 
-      // Re-authenticate the user
       const credential = EmailAuthProvider.credential(
         user.email,
         currentPassword
       );
-
       await reauthenticateWithCredential(user, credential);
-
-      // Update password in Firebase Auth
       await updatePassword(user, newPassword);
 
-      // Update isPasswordSet field in Firestore
       const adminRef = doc(firestoreDb, "admins", adminId);
       await updateDoc(adminRef, {
         isPasswordSet: true,
@@ -99,11 +93,19 @@ const ChangePassword = () => {
       // Clear the password change flag in session storage
       sessionStorage.removeItem("passwordNeedsChange");
 
+      // Notify the parent component about the password change
+      if (typeof onPasswordChanged === "function") {
+        onPasswordChanged();
+      }
+
+      // Dispatch a custom event to notify the App component
+      window.dispatchEvent(new Event("passwordChanged"));
+
       setSuccess(true);
 
-      // Redirect after short delay
+      // Delay navigation to allow the user to see the success message
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       }, 2000);
     } catch (error) {
       console.error("Error changing password:", error);
@@ -115,6 +117,35 @@ const ChangePassword = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Inline styles for buttons with hover effect
+  const cancelButtonStyle = {
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    color: hoverCancel
+      ? "#374151" /* hover:text-gray-700 */
+      : "#6B7280" /* text-gray-500 */,
+    cursor: isPasswordReset || loading ? "not-allowed" : "pointer",
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    transition: "color 0.2s ease",
+  };
+
+  const submitButtonStyle = {
+    backgroundColor: hoverSubmit
+      ? "#3B82F6" /* hover:bg-blue-500 */
+      : "#2563EB" /* bg-blue-600 */,
+    padding: "0.5rem 1rem",
+    borderRadius: "0.375rem", // rounded-md
+    color: "#fff",
+    fontWeight: 500,
+    fontSize: "0.875rem",
+    border: "none",
+    cursor: loading ? "not-allowed" : "pointer",
+    opacity: loading ? 0.5 : 1,
+    transition: "background-color 0.3s ease, opacity 0.3s ease",
   };
 
   return (
@@ -155,6 +186,7 @@ const ChangePassword = () => {
         </div>
 
         <form onSubmit={handlePasswordChange} className="mt-6 space-y-6">
+          {/* Current Password Input */}
           <div className="relative">
             <label
               htmlFor="currentPassword"
@@ -190,6 +222,7 @@ const ChangePassword = () => {
             </div>
           </div>
 
+          {/* New Password Input */}
           <div className="relative">
             <label
               htmlFor="newPassword"
@@ -225,6 +258,7 @@ const ChangePassword = () => {
             </div>
           </div>
 
+          {/* Confirm Password Input */}
           <div className="relative">
             <label
               htmlFor="confirmPassword"
@@ -260,21 +294,26 @@ const ChangePassword = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center justify-between">
             <button
               type="button"
-              className="text-sm font-medium text-gray-500 hover:text-gray-700"
-              onClick={() => navigate(-1)}
               disabled={isPasswordReset || loading}
+              onClick={() => navigate("/dashboard")}
+              style={cancelButtonStyle}
+              onMouseEnter={() => setHoverCancel(true)}
+              onMouseLeave={() => setHoverCancel(false)}
             >
               Cancel
             </button>
+
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md text-white font-medium text-sm disabled:opacity-50"
               disabled={loading}
+              style={submitButtonStyle}
+              onMouseEnter={() => setHoverSubmit(true)}
+              onMouseLeave={() => setHoverSubmit(false)}
             >
-              {loading ? "Changing Password..." : "Change Password"}
+              {loading ? "Changing..." : "Change Password"}
             </button>
           </div>
         </form>

@@ -15,8 +15,10 @@ import onTimeIcon from "../assets/icons/onTimeIcon.svg";
 import overTimeIcon from "../assets/icons/overTimeIcon.svg";
 import HocLogoDesc from "../assets/images/HOC-logoDesc.png";
 import HocLogo from "../assets/images/HocLogo.png";
+import Shape from "../assets/icons/shape.svg";
 
 export default {
+  Shape,
   HocLogo,
   HocLogoDesc,
   presentIcon,

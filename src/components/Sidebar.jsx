@@ -14,12 +14,13 @@ import CustomButton from "../ui_components/CustomButton";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
-import SupervisorAccountOutlinedIcon from '@mui/icons-material/SupervisorAccountOutlined';
+import SupervisorAccountOutlinedIcon from "@mui/icons-material/SupervisorAccountOutlined";
+
 const Sidebar = ({ userRole }) => {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  // Base menu items
+  // Base menu items for regular admins
   const baseMenuItems = [
     { text: "Dashboard", icon: assets.sidebarIcon1, path: "/dashboard" },
     {
@@ -38,19 +39,22 @@ const Sidebar = ({ userRole }) => {
   ];
 
   // Super admin specific menu item
+  const superAdminItem = {
+    text: "Admin Management",
+    icon: <AdminPanelSettingsIcon />,
+    path: "/admin-management",
+  };
 
   // Determine which menu items to show based on user role
-  // Determine which menu items to show based on user role
-  const menuItems =
-    userRole === "superadmin"
-      ? [
-          {
-            text: "Admin Management",
-            icon: <AdminPanelSettingsIcon />,
-            path: "/admin-management",
-          },
-        ]
-      : baseMenuItems;
+  let menuItems = [];
+
+  if (userRole === "superadmin") {
+    // Super admins get the admin management option at the top, followed by all regular admin options
+    menuItems = [superAdminItem, ...baseMenuItems];
+  } else {
+    // Regular admins just get the base menu items
+    menuItems = baseMenuItems;
+  }
 
   const handleSignout = async () => {
     try {
@@ -77,12 +81,19 @@ const Sidebar = ({ userRole }) => {
       }}
     >
       <div className="mb-4">
-        <Typography variant="h6" className="text-gray-800 font-medium">
-          K.M.C Smart Tracking
-        </Typography>
-        <Typography variant="body2" className="text-gray-500">
-          Home of Computer Solutions
-        </Typography>
+        <div className="flex items-center gap-3">
+          <img src={assets.Shape} alt="" />
+          <div>
+            {" "}
+            <Typography variant="p" className="text-[#2C3E50] font-medium">
+              K.M.C Smart Tracking
+            </Typography>
+            <Typography variant="body2" className="text-gray-500">
+              Home of Computer Solutions
+            </Typography>
+          </div>
+        </div>
+
         {userRole && (
           <div className="mt-5 text-sm">
             <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full">

@@ -3,6 +3,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CheckIcon from "@mui/icons-material/Check";
 import CustomButton from "../../ui_components/CustomButton";
 import { useNavigate } from "react-router-dom";
+import { auth } from "../../config/firebase";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("company");
@@ -18,7 +19,7 @@ export default function SettingsPage() {
       <div className="mx-auto py-8 px-10">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-medium text-gray-800">Settings</h1>
-          <button className="bg-emerald-500 text-white px-6 py-2 rounded-md hover:bg-emerald-600">
+          <button className="bg-emerald-500 text-white px-6 py-2 rounded-md edit-btn">
             Edit
           </button>
         </div>
@@ -125,29 +126,10 @@ export default function SettingsPage() {
                 <input
                   type="email"
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  value={adminUsername}
+                  value={auth.currentUser?.displayName}
                   onChange={(e) => setAdminUsername(e.target.value)}
                 />
               </div>
-
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                />
-              </div>
-
-              {/* <CustomButton
-                title={"Change Password"}
-                style={"px-10 text-white"}
-                onClick={() => navigate("/settings/change-password")}
-              /> */}
             </div>
           )}
         </div>

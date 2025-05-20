@@ -184,11 +184,12 @@ const ManageSuperVisor = () => {
       headerName: "Details",
       width: 180,
       renderCell: (params) => (
-        <CustomButton
-          style={"mt-5 w-[120px] text-white text-xs hover:bg-gray-700"}
-          title={"View Employees"}
-          onClick={() => handleViewEmployees(params.row)}
-        />
+       <CustomButton
+  style={"mt-5 w-[120px] text-white text-xs view-employees-btn"}
+  title={"View Employees"}
+  onClick={() => handleViewEmployees(params.row)}
+/>
+
       ),
     },
     {
@@ -211,20 +212,25 @@ const ManageSuperVisor = () => {
           <h2 className="text-black">Supervisor Management</h2>
           <h4 className="mt-2 text-gray-600">Manage all supervisors here</h4>
         </div>
-        <CustomButton
-          title="Add A New Supervisor"
-          style={"w-[230px] text-white h-10 hover:bg-gray-700"}
-          icon={<PersonAddOutlinedIcon />}
-          onClick={() => navigation("/manage-supervisor/AddNewSupervisor")}
-        />
+    <CustomButton
+  title="Add A New Supervisor"
+  style={"w-[230px] text-white h-10 add-supervisor-btn"}
+  icon={<PersonAddOutlinedIcon />}
+  onClick={() => navigation("/manage-supervisor/AddNewSupervisor")}
+/>
+
       </div>
 
       <Paper sx={{ width: "100%", marginTop: 5, paddingLeft: 2 }}>
         <div className="flex justify-between items-center p-5 border-b border-[#dadada]">
           <h1 className="font-bold">Supervisors</h1>
-          <button className="text-blue-500 hover:text-blue-700" onClick={fetchSupervisors}>
-            Refresh
-          </button>
+       <button
+  className="text-blue-500 refresh-supervisors-btn"
+  onClick={fetchSupervisors}
+>
+  Refresh
+</button>
+
         </div>
 
         {loading ? (

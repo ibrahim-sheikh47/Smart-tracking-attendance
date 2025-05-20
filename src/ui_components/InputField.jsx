@@ -30,14 +30,17 @@ const InputField = ({
             disabled={disabled}
             className={`border ${
               error ? "border-red-500" : "border-[#CBD5E1]"
-            } rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296] w-full ${
+            } rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover-border-green focus:outline-[#3DC296] w-full ${
               disabled ? "bg-gray-100 cursor-not-allowed opacity-75" : ""
             }`}
             rows="3"
             cols="30"
             maxLength={200}
-          ></textarea>
-          {error && <p className="text-red-500 text-xs mt-1">{error.message}</p>}
+          />
+
+          {error && (
+            <p className="text-red-500 text-xs mt-1">{error.message}</p>
+          )}
         </div>
       ) : dropdown ? (
         <div className="relative w-full">
@@ -47,7 +50,7 @@ const InputField = ({
             disabled={disabled}
             className={`border ${
               error ? "border-red-500" : "border-[#CBD5E1]"
-            } rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover:border-[#3DC296] focus:outline-[#3DC296] appearance-none pr-10 w-full cursor-pointer ${
+            } rounded-lg p-2 bg-white placeholder:text-[#94A3B8] hover-border-green focus:outline-[#3DC296] appearance-none pr-10 w-full cursor-pointer ${
               disabled ? "bg-gray-100 cursor-not-allowed opacity-75" : ""
             }`}
           >
@@ -61,7 +64,9 @@ const InputField = ({
           <span className="absolute top-1/2 right-2 transform -translate-y-1/2 text-gray-500 pointer-events-none">
             <KeyboardArrowDownOutlinedIcon />
           </span>
-          {error && <p className="text-red-500 text-xs mt-1">{error.message}</p>}
+          {error && (
+            <p className="text-red-500 text-xs mt-1">{error.message}</p>
+          )}
         </div>
       ) : (
         <div className="w-full">
@@ -78,7 +83,9 @@ const InputField = ({
               disabled ? "bg-gray-100 cursor-not-allowed opacity-75" : ""
             }`}
           />
-          {error && <p className="text-red-500 text-xs mt-1">{error.message}</p>}
+          {error && (
+            <p className="text-red-500 text-xs mt-1">{error.message}</p>
+          )}
         </div>
       )}
     </div>

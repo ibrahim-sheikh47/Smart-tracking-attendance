@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import Layout from "./components/Layout";
 import { onAuthStateChanged } from "firebase/auth";
@@ -26,6 +27,17 @@ import UploadFile from "./ImgTest.jsx";
 import ManageSuperVisor from "./pages/SuperVisor/ManageSuperVisor.jsx";
 import AddNewSupervisor from "./pages/SuperVisor/AddNewSupervisor.jsx";
 import PayrollAdminSummary from "./components/PayrollSummary.jsx";
+
+// Component to enforce password change
+function PasswordChangeRedirect({ children, passwordNeedsChange }) {
+  const location = useLocation();
+
+  if (passwordNeedsChange && location.pathname !== "/settings/change-pass") {
+    return <Navigate to="/settings/change-pass" replace />;
+  }
+
+  return children;
+}
 
 function App() {
   const [user, setUser] = useState(null);
@@ -131,135 +143,126 @@ function App() {
   return (
     <Router>
       {user ? (
-        passwordNeedsChange ? (
-          // If password needs change, render ChangePassword component directly
-          <Routes>
-            <Route
-              path="/settings/change-pass"
-              element={
-                <ChangePassword
-                  onPasswordChanged={() => {
-                    setPasswordNeedsChange(false);
-                    // Dispatch custom event
-                    window.dispatchEvent(new Event("passwordChanged"));
-                  }}
-                />
-              }
-            />
-            <Route
-              path="*"
-              element={<Navigate to="/settings/change-pass" replace />}
-            />
-          </Routes>
-        ) : userRole === "employee" ? (
+        userRole === "employee" ? (
           <div className="text-center mt-32 text-xl text-red-600">
             Unauthorized Access. Contact Admin.
           </div>
         ) : (
           <Layout userRole={userRole}>
-            <Routes>
-              {/* Common routes for both admin types */}
-              <Route
-                path="/settings/change-pass"
-                element={
-                  <ChangePassword
-                    onPasswordChanged={() => {
-                      setPasswordNeedsChange(false);
-                    }}
-                  />
-                }
-              />
-
-              {/* Routes accessible to admins */}
-              {userRole === "admin" && (
-                <>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/manage-supervisor" element={<ManageSuperVisor />} />
-                  <Route path="/manage-supervisor/AddNewSupervisor" element={<AddNewSupervisor />} />
-
-                  <Route path="/manage-staff" element={<ManageStaff />} />
-                  <Route
-                    path="/manage-staff/AddNewStaff"
-                    element={<AddNewStaff />}
-                  />
-                  <Route path="/payroll" element={<Payroll />} />
-                  <Route
-                    path="/payroll/payroll-detail/:id"
-                    element={<PayrollDetails />}
-                  />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route
-                    path="/reports/:employeeId/history"
-                    element={<AttendanceHistory />}
-                  />
-                  <Route path="/test" element={<UploadFile />} />
-                </>
-              )}
-
-              {/* Routes accessible only to super admins */}
-              {userRole === "superadmin" && (
-                <>
-                  <Route
-                    path="/admin-management"
-                    element={<AdminManagement />}
-                  />
-                  <Route
-                    path="/admin-management/add-new-admin"
-                    element={<AddNewAdmin />}
-                  />
-                  <Route path="/manage-staff" element={<ManageStaff />} />
-                  <Route
-                    path="/manage-staff/AddNewStaff"
-                    element={<AddNewStaff />}
-                  />
-                  <Route path="/payroll" element={<Payroll />} />
-                  <Route
-                    path="/payroll/payroll-detail/:id"
-                    element={<PayrollDetails />}
-                  />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route
-                    path="/reports/:employeeId/history"
-                    element={<AttendanceHistory />}
-                  />
-                  {/* Removed dashboard route for superadmin */}
-                </>
-              )}
-
-              {/* Default routes - route to appropriate landing page based on role */}
-              <Route
-                path="/"
-                element={
-                  userRole === "superadmin" ? (
-                    <Navigate to="/admin-management" replace />
-                  ) : (
-                    <Navigate to="/dashboard" replace />
-                  )
-                }
-              />
-
-              {/* Redirect superadmin attempting to access dashboard */}
-              {userRole === "superadmin" && (
+            <PasswordChangeRedirect passwordNeedsChange={passwordNeedsChange}>
+              <Routes>
+                {/* Common routes for both admin types */}
                 <Route
-                  path="/dashboard"
-                  element={<Navigate to="/admin-management" replace />}
+                  path="/settings/change-pass"
+                  element={
+                    <ChangePassword
+                      onPasswordChanged={() => {
+                        setPasswordNeedsChange(false);
+                        window.dispatchEvent(new Event("passwordChanged"));
+                      }}
+                    />
+                  }
                 />
-              )}
 
-              {/* Catch-all routes */}
-              <Route
-                path="*"
-                element={
-                  userRole === "superadmin" ? (
-                    <Navigate to="/admin-management" replace />
-                  ) : (
-                    <Navigate to="/dashboard" replace />
-                  )
-                }
-              />
-            </Routes>
+                {/* Common routes for both admin types */}
+                <Route
+                  path="/settings/change-pass"
+                  element={
+                    <ChangePassword
+                      onPasswordChanged={() => {
+                        setPasswordNeedsChange(false);
+                        window.dispatchEvent(new Event("passwordChanged"));
+                      }}
+                    />
+                  }
+                />
+
+                {/* Routes accessible to both admin types */}
+                {(userRole === "admin" || userRole === "superadmin") && (
+                  <>
+                    <Route path="/manage-staff" element={<ManageStaff />} />
+                    <Route
+                      path="/manage-staff/AddNewStaff"
+                      element={<AddNewStaff />}
+                    />
+                    <Route path="/payroll" element={<Payroll />} />
+                    <Route
+                      path="/payroll/payroll-detail/:id"
+                      element={<PayrollDetails />}
+                    />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route
+                      path="/reports/:employeeId/history"
+                      element={<AttendanceHistory />}
+                    />
+                    <Route path="/test" element={<UploadFile />} />
+                  </>
+                )}
+
+                {/* Routes accessible to regular admins only */}
+                {userRole === "admin" && (
+                  <>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route
+                      path="/manage-supervisor"
+                      element={<ManageSuperVisor />}
+                    />
+                    <Route
+                      path="/manage-supervisor/AddNewSupervisor"
+                      element={<AddNewSupervisor />}
+                    />
+                  </>
+                )}
+
+                {/* Routes accessible only to super admins */}
+                {userRole === "superadmin" && (
+                  <>
+                    <Route
+                      path="/admin-management"
+                      element={<AdminManagement />}
+                    />
+                    <Route
+                      path="/admin-management/add-new-admin"
+                      element={<AddNewAdmin />}
+                    />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route
+                      path="/manage-supervisor"
+                      element={<ManageSuperVisor />}
+                    />
+                    <Route
+                      path="/manage-supervisor/AddNewSupervisor"
+                      element={<AddNewSupervisor />}
+                    />
+                  </>
+                )}
+
+                {/* Default routes - route to appropriate landing page based on role */}
+                <Route
+                  path="/"
+                  element={
+                    userRole === "superadmin" ? (
+                      <Navigate to="/admin-management" replace />
+                    ) : (
+                      <Navigate to="/dashboard" replace />
+                    )
+                  }
+                />
+
+                {/* Catch-all routes */}
+                <Route
+                  path="*"
+                  element={
+                    userRole === "superadmin" ? (
+                      <Navigate to="/admin-management" replace />
+                    ) : (
+                      <Navigate to="/dashboard" replace />
+                    )
+                  }
+                />
+              </Routes>
+            </PasswordChangeRedirect>
           </Layout>
         )
       ) : (

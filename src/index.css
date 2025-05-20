@@ -7,3 +7,46 @@
   fill: #3DC296 !important; /* Green color to match your theme */
   cursor: pointer;
 }
+.save-button:hover {
+  background-color: #3DC296;
+  color: white;
+}
+.cancel-button:hover {
+  background-color: #6b7280; /* Tailwind's gray-500 hex */
+  color: white;
+}
+.edit-button:hover {
+  background-color: #3b82f6; /* Tailwind blue-500 */
+  color: white;
+}
+
+.qr-button:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease-in-out;
+}
+.view-history-button:hover {
+  background-color: #3DC296;
+  color: white;
+}
+.edit-btn:hover {
+  background-color: #16a34a; /* Tailwind emerald-600 */
+}
+.custom-view-details:hover {
+  background-color: #374151; /* Tailwind's gray-700 hex */
+}
+.add-staff-btn:hover {
+  background-color: #374151; /* Tailwind gray-700 */
+}
+.view-employees-btn:hover {
+  background-color: #374151; /* Tailwind gray-700 */
+}
+.add-supervisor-btn:hover {
+  background-color: #374151; /* Tailwind gray-700 */
+}
+.refresh-supervisors-btn:hover {
+  color: #1d4ed8; /* Tailwind blue-700 */
+}
+.btnScale:hover{
+  transform: scale(1.05);
+  transition: transform 0.2s ease-in-out;
+}

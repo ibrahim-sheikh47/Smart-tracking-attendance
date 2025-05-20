@@ -21,34 +21,22 @@ export const Auth = () => {
     setError(null);
 
     try {
-      // First check if the email exists in the appropriate collection
       const adminsRef = collection(firestoreDb, "admins");
       const emailQuery = query(adminsRef, where("email", "==", email));
       const querySnapshot = await getDocs(emailQuery);
 
-      // If no matching admin found, show error
       if (querySnapshot.empty) {
         setError("No administrator account found with this email");
         setLoading(false);
         return;
       }
 
-      // Get the admin document data
       const adminDoc = querySnapshot.docs[0];
       const adminData = adminDoc.data();
       const isSuper = adminData.isSuper === true;
       const isFirstLogin = adminData.isFirstLogin === true;
-      const isPasswordSet = adminData.isPasswordSet === true; // Ensure explicit boolean comparison
+      const isPasswordSet = adminData.isPasswordSet === true;
 
-      console.log("Admin login data:", {
-        email,
-        isSuper,
-        isFirstLogin,
-        isPasswordSet,
-        adminId: adminDoc.id,
-      });
-
-      // Check if the login mode matches the admin type
       if (loginMode === "admin" && isSuper) {
         setError(
           "This email belongs to a Super Admin account. Please select Super Admin to continue."
@@ -65,18 +53,12 @@ export const Auth = () => {
         return;
       }
 
-      // If we've passed all checks, now attempt to sign in
       await signInWithEmailAndPassword(auth, email, password);
 
-      // Store the admin ID, password status, and isSuper status in sessionStorage
       sessionStorage.setItem("adminId", adminDoc.id);
       sessionStorage.setItem("passwordNeedsChange", isPasswordSet === false);
       sessionStorage.setItem("isSuper", isSuper);
 
-      console.log("Password set status:", isPasswordSet);
-
-      // If password needs to be changed, redirect to password change page
-      // If password needs to be changed AND the user is NOT a super admin
       if (isPasswordSet === false && !isSuper) {
         alert("Password not set, redirecting to change password page");
         navigate("/change-pass", {
@@ -89,9 +71,7 @@ export const Auth = () => {
         return;
       }
 
-      // If it's the first login, redirect to settings page
       if (isFirstLogin) {
-        // Navigate to settings page with first login flag
         navigate("/settings", {
           state: {
             isFirstLogin: true,
@@ -99,17 +79,11 @@ export const Auth = () => {
           },
         });
       } else {
-        // Navigate to dashboard or home page
         navigate("/dashboard");
       }
 
       setLoading(false);
-      console.log(
-        "Authentication successful as",
-        isSuper ? "Super Admin" : "Admin"
-      );
     } catch (error) {
-      console.error("Login error:", error);
       if (error.code === "auth/wrong-password") {
         setError("Incorrect password. Please try again.");
       } else if (error.code === "auth/user-not-found") {
@@ -130,6 +104,15 @@ export const Auth = () => {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
+
+  // Inline styles for manual hover effect on button
+  const buttonBaseStyle =
+    "group relative flex w-full justify-center rounded-md cursor-pointer py-2 px-3 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+
+  const buttonBgColor = loginMode === "admin" ? "#2563eb" : "#7c3aed"; // blue-600 or purple-600
+  const buttonHoverBgColor = loginMode === "admin" ? "#3b82f6" : "#8b5cf6"; // blue-500 or purple-500
+  const focusOutlineColor =
+    loginMode === "admin" ? "focus-visible:outline-blue-600" : "focus-visible:outline-purple-600";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 py-4 px-4 sm:px-6 lg:px-8">
@@ -221,10 +204,7 @@ export const Auth = () => {
                 {showPassword ? (
                   <VisibilityIcon fontSize="small" className="text-gray-500" />
                 ) : (
-                  <VisibilityOffIcon
-                    fontSize="small"
-                    className="text-gray-500"
-                  />
+                  <VisibilityOffIcon fontSize="small" className="text-gray-500" />
                 )}
               </button>
             </div>
@@ -234,24 +214,24 @@ export const Auth = () => {
             <button
               onClick={validateCredentials}
               disabled={loading}
-              className={`group relative flex w-full justify-center rounded-md cursor-pointer ${
-                loginMode === "admin"
-                  ? "bg-blue-600 hover:bg-blue-500"
-                  : "bg-purple-600 hover:bg-purple-500"
-              } py-2 px-3 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                loginMode === "admin"
-                  ? "focus-visible:outline-blue-600"
-                  : "focus-visible:outline-purple-600"
-              } ${loading ? "opacity-75 cursor-not-allowed" : ""}`}
+              className={`${buttonBaseStyle} ${focusOutlineColor} ${
+                loading ? "opacity-75 cursor-not-allowed" : ""
+              }`}
+              style={{ backgroundColor: buttonBgColor }}
+              onMouseEnter={(e) => {
+                if (!loading) e.currentTarget.style.backgroundColor = buttonHoverBgColor;
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) e.currentTarget.style.backgroundColor = buttonBgColor;
+              }}
             >
               {loading
                 ? "Signing in..."
-                : `Sign in as ${
-                    loginMode === "admin" ? "Admin" : "Super Admin"
-                  }`}
+                : `Sign in as ${loginMode === "admin" ? "Admin" : "Super Admin"}`}
             </button>
           </div>
         </div>
+
         <div className="mt-10">
           <img src={assets.HocLogoDesc} className="w-[70%]" alt="" />
         </div>
