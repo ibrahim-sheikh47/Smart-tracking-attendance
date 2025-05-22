@@ -59,6 +59,7 @@ import {
   isWithinInterval,
   differenceInMinutes,
 } from "date-fns";
+import ExportModal from "../../ui_components/ExportModal";
 
 export default function Reports() {
   const location = useLocation();
@@ -69,7 +70,6 @@ export default function Reports() {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  // eslint-disable-next-line no-unused-vars
   const [selected, setSelected] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
@@ -94,6 +94,7 @@ export default function Reports() {
   });
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [currentAdmin, setCurrentAdmin] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Get employee ID from URL parameters
   const queryParams = new URLSearchParams(location.search);
@@ -156,6 +157,7 @@ export default function Reports() {
 
       if (employeeDoc.exists()) {
         const data = employeeDoc.data();
+        console.log("Employee data retrieved:", data);
         const employeeData = {
           ...data,
           id: employeeDoc.id,
@@ -164,11 +166,18 @@ export default function Reports() {
         setEmployee(employeeData);
         setFormValues(employeeData);
       } else {
-        setError("Employee not found");
+        console.error(`Employee document with ID ${employeeId} not found`);
+        setError(
+          `Employee with ID ${employeeId} not found. Please check the employee ID.`
+        );
       }
     } catch (err) {
       console.error("Error fetching employee data:", err);
-      setError("Failed to load employee data");
+      // Log more specific error details
+      if (err.code) {
+        console.error(`Firebase error code: ${err.code}`);
+      }
+      setError(`Failed to load employee data: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -620,6 +629,8 @@ export default function Reports() {
           absents: absentDays,
           overtime: `${overtimeHours} hour${overtimeHours !== 1 ? "s" : ""}`,
           workingHours: totalWorkingHours,
+          hourlyRate: data.hourlyRate,
+          overtimeRate: data.overtimeRate,
           adminId: data.adminId,
         });
       }
@@ -697,6 +708,9 @@ export default function Reports() {
         designation: formValues.designation,
         bio: formValues.bio,
         phoneNumber: formValues.phoneNumber,
+        workingHours: formValues.workingHours,
+        hourlyRate: formValues.hourlyRate,
+        overtimeRate: formValues.overtimeRate,
         updatedAt: Timestamp.now(),
       });
 
@@ -733,6 +747,10 @@ export default function Reports() {
 
   const handleMonthChange = (e) => {
     setSelectedMonth(e.target.value);
+  };
+
+  const handleExportClick = () => {
+    setExportModalOpen(true);
   };
 
   // Get initials for the avatar fallback
@@ -788,7 +806,7 @@ export default function Reports() {
   // If employeeId is provided, show single employee report
   if (employeeId && employee) {
     return (
-      <div className="flex items-start gap-5 m-5">
+      <div className="flex items-start gap-5 m-5" data-export-content>
         <div className="max-w-[400px] bg-[#F9F9F9] p-4 rounded-2xl">
           <div className="flex items-center justify-between">
             <p>Person info</p>
@@ -950,7 +968,7 @@ export default function Reports() {
                 <TextField
                   label="Working Hours (per week)"
                   name="workingHours"
-                  value={formValues.workingHours || "40"}
+                  value={formValues.workingHours || ""}
                   onChange={handleInputChange}
                   fullWidth
                   size="small"
@@ -958,6 +976,34 @@ export default function Reports() {
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">hours</InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  label="Per Hour Rate"
+                  name="hourlyRate"
+                  value={formValues.hourlyRate || ""}
+                  onChange={handleInputChange}
+                  fullWidth
+                  size="small"
+                  type="number"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">Dalasi</InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  label="Overtime Hourly Rate"
+                  name="overtimeRate"
+                  value={formValues.overtimeRate || ""}
+                  onChange={handleInputChange}
+                  fullWidth
+                  size="small"
+                  type="number"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">Dalasi</InputAdornment>
                     ),
                   }}
                 />
@@ -999,6 +1045,16 @@ export default function Reports() {
                   value={`${employee?.workingHours || 40} hours`}
                   disabled={true}
                 />
+                <InputField
+                  label={"Per Hour Rate"}
+                  value={`${employee?.hourlyRate || 40} hours`}
+                  disabled={true}
+                />
+                <InputField
+                  label={"Overtime Hourly Rate"}
+                  value={`${employee?.overtimeRate || 40} hours`}
+                  disabled={true}
+                />
               </>
             )}
           </div>
@@ -1008,12 +1064,21 @@ export default function Reports() {
           <div className="bg-[#F9F9F9] p-4 rounded-2xl">
             <div className="flex justify-between items-center">
               <p>Attendance Report</p>
-              <button
-                className="border-2 text-sm border-[#3DC296] text-[#3DC296] px-4 py-2 rounded-lg font-bold cursor-pointer view-history-button"
-                onClick={() => handleViewHistory(employeeId)}
-              >
-                View History
-              </button>
+              <div className="flex gap-2">
+                <button
+                  className="border-2 text-sm border-[#3DC296] text-[#3DC296] px-4 py-2 rounded-lg font-bold cursor-pointer view-history-button"
+                  onClick={() => handleViewHistory(employeeId)}
+                >
+                  View History
+                </button>
+                <button
+                  className="border-2 text-sm border-blue-500 text-blue-500 px-4 py-2 rounded-lg font-bold cursor-pointer export-button"
+                  onClick={handleExportClick}
+                >
+                  <ExportIcon fontSize="small" className="mr-1" />
+                  Export
+                </button>
+              </div>
             </div>
 
             <Divider sx={{ marginY: 3 }} />
@@ -1099,6 +1164,18 @@ export default function Reports() {
           </DialogActions>
         </Dialog>
 
+        {/* Export Modal */}
+        <ExportModal
+          open={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          data={{
+            ...employee,
+            ...attendanceSummary,
+            chartData,
+          }}
+          title={`Employee Report - ${employee.name}`}
+        />
+
         {/* Snackbar for notifications */}
         <Snackbar
           open={snackbar.open}
@@ -1120,7 +1197,7 @@ export default function Reports() {
 
   // If no employeeId is provided, show all employees report
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3 }} data-export-content>
       <Box
         sx={{
           display: "flex",
@@ -1144,6 +1221,7 @@ export default function Reports() {
             backgroundColor: "#3DC296",
             "&:hover": { backgroundColor: "#2ea37b" },
           }}
+          onClick={handleExportClick}
         >
           Export All
         </Button>
@@ -1211,7 +1289,6 @@ export default function Reports() {
                 <TableCell>Present</TableCell>
                 <TableCell>Absents</TableCell>
                 <TableCell>Overtime</TableCell>
-                <TableCell>Working Hours</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1249,7 +1326,6 @@ export default function Reports() {
                       <TableCell>{employee.present}</TableCell>
                       <TableCell>{employee.absents}</TableCell>
                       <TableCell>{employee.overtime}</TableCell>
-                      <TableCell>{employee.workingHours} hrs</TableCell>
                       <TableCell>{employee.createdBy}</TableCell>
                     </TableRow>
                   );
@@ -1283,6 +1359,14 @@ export default function Reports() {
           </Typography>
         </Box>
       </Paper>
+
+      {/* Export Modal */}
+      <ExportModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        data={filteredEmployees}
+        title="Staff Reports"
+      />
 
       {/* Snackbar for notifications */}
       <Snackbar

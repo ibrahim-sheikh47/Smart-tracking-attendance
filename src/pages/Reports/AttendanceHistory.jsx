@@ -25,6 +25,7 @@ import { firestoreDb } from "../../config/firebase.jsx"
 import CustomButton from "../../ui_components/CustomButton.jsx"
 import { getAuth } from "firebase/auth"
 import { format, differenceInMinutes } from "date-fns"
+import ExportModal from "../../ui_components/ExportModal"
 
 export default function AttendanceHistory() {
   const navigate = useNavigate()
@@ -40,6 +41,7 @@ export default function AttendanceHistory() {
   const [searchTerm, setSearchTerm] = useState("")
   const [employeeInfo, setEmployeeInfo] = useState(null)
   const [currentAdmin, setCurrentAdmin] = useState(null)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
 
   // Get the current admin user
   useEffect(() => {
@@ -270,6 +272,10 @@ export default function AttendanceHistory() {
     setPage(0)
   }
 
+  const handleExportClick = () => {
+    setExportModalOpen(true)
+  }
+
   // Filter data based on search term
   const filteredData = attendanceData.filter((row) => {
     return (
@@ -309,11 +315,14 @@ export default function AttendanceHistory() {
         <IconButton onClick={handleBack} sx={{ marginRight: 1 }}>
           <ChevronLeft />
         </IconButton>
-        <Typography variant="h6">Attendance History {employeeInfo && `- ${employeeInfo.name}`}</Typography>
+        <Typography variant="h6">
+          Attendance History
+          {employeeInfo && ` - ${employeeInfo.name}`}
+        </Typography>
       </Box>
 
       {/* Search and Export */}
-      <Paper sx={{ margin: 3, padding: 3, borderRadius: 4 }}>
+      <Paper sx={{ margin: 3, padding: 3, borderRadius: 4 }} data-export-content>
         <Box
           sx={{
             display: "flex",
@@ -340,7 +349,7 @@ export default function AttendanceHistory() {
                 sx: { borderRadius: 2 },
               }}
             />
-            <CustomButton title={"Export"} style={"text-white w-[110px] h-[40px]"} />
+            <CustomButton title={"Export"} style={"text-white w-[110px] h-[40px]"} onClick={handleExportClick} />
           </Box>
         </Box>
 
@@ -416,6 +425,14 @@ export default function AttendanceHistory() {
           />
         </Box>
       </Paper>
+
+      {/* Export Modal */}
+      <ExportModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        data={attendanceData}
+        title={`Attendance History - ${employeeInfo?.name || "Employee"}`}
+      />
     </>
   )
 }

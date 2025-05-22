@@ -39,6 +39,7 @@ import { firestoreDb } from "../../config/firebase.jsx";
 import { differenceInMinutes } from "date-fns";
 import { getAuth } from "firebase/auth";
 import PayrollSummary from "../../components/PayrollSummary";
+import ExportModal from "../../ui_components/ExportModal.jsx";
 
 const Payroll = () => {
   const navigate = useNavigate();
@@ -49,10 +50,10 @@ const Payroll = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState([]);
-  // eslint-disable-next-line no-unused-vars
   const [selectAll, setSelectAll] = useState(false);
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Get the current admin user
   useEffect(() => {
@@ -86,6 +87,8 @@ const Payroll = () => {
   useEffect(() => {
     if (currentAdmin) {
       fetchEmployees();
+    } else {
+      console.log("Waiting for admin data before fetching employees");
     }
   }, [currentAdmin]);
 
@@ -95,7 +98,6 @@ const Payroll = () => {
 
       setLoading(true);
       // Get employees from the main employees collection
-      // Remove the filter by adminId to get all employees
       const employeesCollection = collection(firestoreDb, "employees");
       const employeeSnapshot = await getDocs(employeesCollection);
 
@@ -106,16 +108,16 @@ const Payroll = () => {
         // Fetch check-ins for this employee
         const checkInsRef = collection(firestoreDb, "CheckIns");
         const checkInsQuery = query(
-            checkInsRef,
-            where("employeeId", "==", employeeId)
+          checkInsRef,
+          where("employeeId", "==", employeeId)
         );
         const checkInsSnapshot = await getDocs(checkInsQuery);
 
         // Fetch check-outs for this employee
         const checkOutsRef = collection(firestoreDb, "CheckOuts");
         const checkOutsQuery = query(
-            checkOutsRef,
-            where("employeeId", "==", employeeId)
+          checkOutsRef,
+          where("employeeId", "==", employeeId)
         );
         const checkOutsSnapshot = await getDocs(checkOutsQuery);
 
@@ -171,13 +173,13 @@ const Payroll = () => {
         // Match check-ins with check-outs by sessionId
         checkIns.forEach((checkIn) => {
           const matchingCheckOut = checkOuts.find(
-              (checkOut) => checkOut.sessionId === checkIn.sessionId
+            (checkOut) => checkOut.sessionId === checkIn.sessionId
           );
 
           if (matchingCheckOut) {
             const workingMinutes = differenceInMinutes(
-                matchingCheckOut.time,
-                checkIn.time
+              matchingCheckOut.time,
+              checkIn.time
             );
 
             if (workingMinutes > 0) {
@@ -200,9 +202,15 @@ const Payroll = () => {
         const remainingOvertimeMinutes = totalOvertimeMinutes % 60;
 
         // Calculate compensation
-        // Use a default hourly rate if not provided
-        const hourlyRate = employeeData.hourlyRate || 15; // Default to 15 if not set
-        const overtimeRate = employeeData.overtimeRate || hourlyRate * 1.5;
+        const hourlyRate =
+          typeof employeeData.hourlyRate === "number"
+            ? employeeData.hourlyRate
+            : Number.parseFloat(employeeData.hourlyRate) || 15;
+
+        const overtimeRate =
+          typeof employeeData.overtimeRate === "number"
+            ? employeeData.overtimeRate
+            : Number.parseFloat(employeeData.overtimeRate) || hourlyRate * 1.5;
 
         // Calculate regular pay (excluding overtime)
         const regularHours = totalWorkingHours - totalOvertimeHours;
@@ -214,52 +222,42 @@ const Payroll = () => {
         // Calculate total pay
         const totalPay = regularPay + overtimePay;
 
-        console.log(
-            `Employee ${employeeData.firstName} ${employeeData.lastName} pay calculation:`,
-            {
-              hourlyRate,
-              totalWorkingHours,
-              totalOvertimeHours,
-              regularPay,
-              overtimePay,
-              totalPay,
-            }
-        );
-
         return {
           id: employeeId,
           name: `${employeeData.firstName} ${employeeData.lastName}`,
-          comp: `D${hourlyRate.toFixed(2)}`,
+          comp: `D${Number(hourlyRate).toFixed(2)}`,
           hours: `${employeeData.workingHours || 40} hours`,
           overtime:
-              totalOvertimeMinutes > 0
-                  ? `${totalOvertimeHours} hour${
-                      totalOvertimeHours !== 1 ? "s" : ""
-                  } ${remainingOvertimeMinutes} min${
-                      remainingOvertimeMinutes !== 1 ? "s" : ""
-                  }`
-                  : "None",
+            totalOvertimeMinutes > 0
+              ? `${totalOvertimeHours} hour${
+                  totalOvertimeHours !== 1 ? "s" : ""
+                } ${remainingOvertimeMinutes} min${
+                  remainingOvertimeMinutes !== 1 ? "s" : ""
+                }`
+              : "None",
           avatar: employeeData.photoURL || "",
           department: employeeData.department || "N/A",
           totalWorkingTime: `${totalWorkingHours} hour${
-              totalWorkingHours !== 1 ? "s" : ""
+            totalWorkingHours !== 1 ? "s" : ""
           } ${remainingWorkingMinutes} min${
-              remainingWorkingMinutes !== 1 ? "s" : ""
+            remainingWorkingMinutes !== 1 ? "s" : ""
           }`,
           totalPay: `D${totalPay.toFixed(2)}`,
           email: employeeData.email,
           phoneNumber: employeeData.phoneNumber,
-          adminId: employeeData.adminId, // Store the admin ID
+          adminId: employeeData.adminId,
         };
       });
 
       const employeeList = await Promise.all(employeePromises);
-      console.log("Processed employee list with pay data:", employeeList);
       setEmployees(employeeList);
       setError(null);
     } catch (err) {
       console.error("Error fetching employee data:", err);
-      setError("Failed to load employee data. Please try again later.");
+      if (err.code) {
+        console.error(`Firebase error code: ${err.code}`);
+      }
+      setError(`Failed to load employee data: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -296,20 +294,24 @@ const Payroll = () => {
     setActiveTab(newValue);
   };
 
+  const handleExportClick = () => {
+    setExportModalOpen(true);
+  };
+
   const isSelected = (id) => selected.indexOf(id) !== -1;
 
   const filteredEmployees = employees.filter(
-      (employee) =>
-          employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    (employee) =>
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Calculate pagination
   const indexOfLastEmployee = page * rowsPerPage;
   const indexOfFirstEmployee = indexOfLastEmployee - rowsPerPage;
   const currentEmployees = filteredEmployees.slice(
-      indexOfFirstEmployee,
-      indexOfLastEmployee
+    indexOfFirstEmployee,
+    indexOfLastEmployee
   );
 
   // Get initials for avatar fallback
@@ -317,218 +319,227 @@ const Payroll = () => {
     if (!name) return "";
     const parts = name.split(" ");
     return `${parts[0]?.charAt(0) || ""}${
-        parts[1]?.charAt(0) || ""
+      parts[1]?.charAt(0) || ""
     }`.toUpperCase();
   };
 
   return (
-      <Box sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
-        <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+    <Box
+      sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}
+      data-export-content
+    >
+      <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 3,
+          }}
+        >
+          <Box>
+            <Typography variant="h5" fontWeight="bold" color="text.primary">
+              Staff Payroll
+            </Typography>
+          </Box>
+          <CustomButton
+            title={"Export All"}
+            style={"text-white w-[110px] h-[40px]"}
+            onClick={handleExportClick}
+          />
+        </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
+          <Tab label="Payroll Summary" />
+          <Tab label="Employee Details" />
+        </Tabs>
+      </Paper>
+
+      {activeTab === 0 ? (
+        <PayrollSummary employees={employees} loading={loading} />
+      ) : (
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
           <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 3,
-              }}
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
           >
-            <Box>
-              <Typography variant="h5" fontWeight="bold" color="text.primary">
-                Staff Payroll
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Manage all payrolls here.
-              </Typography>
+            <Typography variant="subtitle1" fontWeight="bold">
+              Employees Payroll Reports
+            </Typography>
+
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField
+                placeholder="Search..."
+                size="small"
+                value={searchTerm}
+                onChange={handleSearch}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ width: 220 }}
+              />
+
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <Select
+                  value={rowsPerPage.toString()}
+                  onChange={(e) => handleChangeRowsPerPage(e)}
+                  renderValue={(value) => `Show: ${value}`}
+                  IconComponent={KeyboardArrowDownIcon}
+                >
+                  <MenuItem value="10">10</MenuItem>
+                  <MenuItem value="25">25</MenuItem>
+                  <MenuItem value="50">50</MenuItem>
+                  <MenuItem value="100">100</MenuItem>
+                </Select>
+              </FormControl>
             </Box>
-            <CustomButton
-                title={"Export All"}
-                style={"text-white w-[110px] h-[40px]"}
-            />
           </Box>
 
-          {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {error}
-              </Alert>
-          )}
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              <TableContainer component={Paper} elevation={0} sx={{ mb: 2 }}>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#f9f9f9" }}>
+                    <TableRow>
+                      <TableCell padding="checkbox"></TableCell>
+                      <TableCell>ID</TableCell>
+                      <TableCell>Employee Name</TableCell>
+                      <TableCell>Comp/Hour</TableCell>
+                      <TableCell>Hours/wk</TableCell>
+                      <TableCell>Overtime</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {currentEmployees.map((employee, index) => {
+                      const isItemSelected = isSelected(employee.id);
 
-          <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
-            <Tab label="Payroll Summary" />
-            <Tab label="Employee Details" />
-          </Tabs>
-        </Paper>
-
-        {activeTab === 0 ? (
-            <PayrollSummary employees={employees} loading={loading} />
-        ) : (
-            <Paper sx={{ p: 3, borderRadius: 2 }}>
-              <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 2,
-                  }}
-              >
-                <Typography variant="subtitle1" fontWeight="bold">
-                  Employees Payroll Reports
-                </Typography>
-
-                <Box sx={{ display: "flex", gap: 2 }}>
-                  <TextField
-                      placeholder="Search..."
-                      size="small"
-                      value={searchTerm}
-                      onChange={handleSearch}
-                      InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchIcon fontSize="small" />
-                            </InputAdornment>
-                        ),
-                      }}
-                      sx={{ width: 220 }}
-                  />
-
-                  <FormControl size="small" sx={{ minWidth: 100 }}>
-                    <Select
-                        value={rowsPerPage.toString()}
-                        onChange={(e) => handleChangeRowsPerPage(e)}
-                        renderValue={(value) => `Show: ${value}`}
-                        IconComponent={KeyboardArrowDownIcon}
-                    >
-                      <MenuItem value="10">10</MenuItem>
-                      <MenuItem value="25">25</MenuItem>
-                      <MenuItem value="50">50</MenuItem>
-                      <MenuItem value="100">100</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-
-              {loading ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
-                    <CircularProgress />
-                  </Box>
-              ) : (
-                  <>
-                    <TableContainer component={Paper} elevation={0} sx={{ mb: 2 }}>
-                      <Table>
-                        <TableHead sx={{ bgcolor: "#f9f9f9" }}>
-                          <TableRow>
-                            <TableCell padding="checkbox"></TableCell>
-                            <TableCell>ID</TableCell>
-                            <TableCell>Employee Name</TableCell>
-                            <TableCell>Comp/Hour</TableCell>
-                            <TableCell>Hours/wk</TableCell>
-                            <TableCell>Overtime</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {currentEmployees.map((employee, index) => {
-                            const isItemSelected = isSelected(employee.id);
-
-                            return (
-                                <TableRow
-                                    key={employee.id}
-                                    hover
-                                    selected={isItemSelected}
-                                    onClick={(event) =>
-                                        handleSelectOne(event, employee.id)
-                                    }
+                      return (
+                        <TableRow
+                          key={employee.id}
+                          hover
+                          selected={isItemSelected}
+                          onClick={(event) =>
+                            handleSelectOne(event, employee.id)
+                          }
+                        >
+                          <TableCell padding="checkbox"></TableCell>
+                          <TableCell>
+                            {indexOfFirstEmployee + index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                                cursor: "pointer",
+                                "&:hover": {
+                                  color: "#009688",
+                                },
+                              }}
+                              onClick={() =>
+                                navigate(
+                                  `/payroll/payroll-detail/${employee.id}?adminId=${employee.adminId}`
+                                )
+                              }
+                            >
+                              {employee.avatar ? (
+                                <Avatar
+                                  src={employee.avatar}
+                                  sx={{ width: 36, height: 36 }}
+                                />
+                              ) : (
+                                <Avatar
+                                  sx={{
+                                    width: 36,
+                                    height: 36,
+                                    bgcolor: "#3DC296",
+                                  }}
                                 >
-                                  <TableCell padding="checkbox"></TableCell>
-                                  <TableCell>
-                                    {indexOfFirstEmployee + index + 1}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Box
-                                        sx={{
-                                          display: "flex",
-                                          alignItems: "center",
-                                          gap: 1.5,
-                                          cursor: "pointer",
-                                          "&:hover": {
-                                            color: "#009688",
-                                          },
-                                        }}
-                                        onClick={() =>
-                                            navigate(
-                                                `/payroll/payroll-detail/${employee.id}?adminId=${employee.adminId}`
-                                            )
-                                        }
-                                    >
-                                      {employee.avatar ? (
-                                          <Avatar
-                                              src={employee.avatar}
-                                              sx={{ width: 36, height: 36 }}
-                                          />
-                                      ) : (
-                                          <Avatar
-                                              sx={{
-                                                width: 36,
-                                                height: 36,
-                                                bgcolor: "#3DC296",
-                                              }}
-                                          >
-                                            {getInitials(employee.name)}
-                                          </Avatar>
-                                      )}
-                                      {employee.name}
-                                    </Box>
-                                  </TableCell>
-                                  <TableCell>{employee.comp}</TableCell>
-                                  <TableCell>{employee.hours}</TableCell>
-                                  <TableCell>{employee.overtime}</TableCell>
-                                </TableRow>
-                            );
-                          })}
-                          {currentEmployees.length === 0 && (
-                              <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
-                                  {filteredEmployees.length === 0 ? (
-                                      searchTerm ? (
-                                          <Typography>
-                                            No employees found matching "{searchTerm}"
-                                          </Typography>
-                                      ) : (
-                                          <Typography>No employees found</Typography>
-                                      )
-                                  ) : (
-                                      <Typography>No employees on this page</Typography>
-                                  )}
-                                </TableCell>
-                              </TableRow>
+                                  {getInitials(employee.name)}
+                                </Avatar>
+                              )}
+                              {employee.name}
+                            </Box>
+                          </TableCell>
+                          <TableCell>{employee.comp}</TableCell>
+                          <TableCell>{employee.hours}</TableCell>
+                          <TableCell>{employee.overtime}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {currentEmployees.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                          {filteredEmployees.length === 0 ? (
+                            searchTerm ? (
+                              <Typography>
+                                No employees found matching "{searchTerm}"
+                              </Typography>
+                            ) : (
+                              <Typography>No employees found</Typography>
+                            )
+                          ) : (
+                            <Typography>No employees on this page</Typography>
                           )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-                    <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        Showing {indexOfFirstEmployee + 1}-
-                        {Math.min(indexOfLastEmployee, filteredEmployees.length)} from{" "}
-                        {filteredEmployees.length}
-                      </Typography>
-                      <Pagination
-                          count={Math.ceil(filteredEmployees.length / rowsPerPage)}
-                          page={page}
-                          onChange={handleChangePage}
-                          color="primary"
-                          shape="rounded"
-                      />
-                    </Box>
-                  </>
-              )}
-            </Paper>
-        )}
-      </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  Showing {indexOfFirstEmployee + 1}-
+                  {Math.min(indexOfLastEmployee, filteredEmployees.length)} from{" "}
+                  {filteredEmployees.length}
+                </Typography>
+                <Pagination
+                  count={Math.ceil(filteredEmployees.length / rowsPerPage)}
+                  page={page}
+                  onChange={handleChangePage}
+                  color="primary"
+                  shape="rounded"
+                />
+              </Box>
+            </>
+          )}
+        </Paper>
+      )}
+
+      {/* Export Modal */}
+      <ExportModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        data={employees}
+        title="Staff Payroll Data"
+      />
+    </Box>
   );
 };
 
