@@ -25,6 +25,10 @@ import {
   DialogTitle,
   Snackbar,
   Alert,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -95,6 +99,8 @@ export default function Reports() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
   // Get employee ID from URL parameters
   const queryParams = new URLSearchParams(location.search);
@@ -128,11 +134,43 @@ export default function Reports() {
     fetchCurrentAdmin();
   }, []);
 
+  // Fetch departments from Firebase
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const departmentsRef = collection(firestoreDb, "departments");
+      const departmentsSnapshot = await getDocs(departmentsRef);
+
+      const departmentsList = [];
+      departmentsSnapshot.forEach((doc) => {
+        const departmentData = doc.data();
+        departmentsList.push({
+          value: departmentData.name || doc.id,
+          label: departmentData.displayName || departmentData.name || doc.id,
+        });
+      });
+
+      // Sort departments alphabetically
+      departmentsList.sort((a, b) => a.label.localeCompare(b.label));
+      setDepartments(departmentsList);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to load departments list",
+        severity: "error",
+      });
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
   // Fetch employee data or all employees
   useEffect(() => {
     if (currentAdmin) {
       if (employeeId) {
         fetchSingleEmployee();
+        fetchDepartments(); // Fetch departments for edit mode
       } else {
         fetchAllEmployees();
       }
@@ -918,14 +956,22 @@ export default function Reports() {
             </div>
             {editMode ? (
               <>
-                <TextField
-                  label="Department"
-                  name="department"
-                  value={formValues.department || ""}
-                  onChange={handleInputChange}
-                  fullWidth
-                  size="small"
-                />
+                <FormControl fullWidth size="small">
+                  <InputLabel>Department</InputLabel>
+                  <Select
+                    name="department"
+                    value={formValues.department || ""}
+                    onChange={handleInputChange}
+                    label="Department"
+                    disabled={loadingDepartments}
+                  >
+                    {departments.map((dept) => (
+                      <MenuItem key={dept.value} value={dept.value}>
+                        {dept.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
                 <TextField
                   label="Designation"
                   name="designation"

@@ -76,6 +76,8 @@ const AddNewStaff = () => {
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [supervisors, setSupervisors] = useState([]);
   const [loadingSupervisors, setLoadingSupervisors] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
   const currentUser = auth.currentUser;
 
@@ -91,8 +93,9 @@ const AddNewStaff = () => {
           if (adminDocSnap.exists()) {
             setCurrentAdmin(adminDocSnap.data());
             console.log("Current admin data:", adminDocSnap.data());
-            // After getting admin data, fetch supervisors
+            // After getting admin data, fetch supervisors and departments
             fetchSupervisors();
+            fetchDepartments();
           } else {
             console.error("No admin document found for current user");
             setSubmitError("Authentication error: Admin profile not found");
@@ -105,6 +108,34 @@ const AddNewStaff = () => {
 
     fetchCurrentAdmin();
   }, [currentUser]);
+
+  // Fetch departments from Firebase
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const db = getFirestore();
+      const departmentsRef = collection(db, "departments");
+      const departmentsSnapshot = await getDocs(departmentsRef);
+
+      const departmentsList = [];
+      departmentsSnapshot.forEach((doc) => {
+        const departmentData = doc.data();
+        departmentsList.push({
+          value: departmentData.name || doc.id,
+          label: departmentData.displayName || departmentData.name || doc.id,
+        });
+      });
+
+      // Sort departments alphabetically
+      departmentsList.sort((a, b) => a.label.localeCompare(b.label));
+      setDepartments(departmentsList);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      setSubmitError("Failed to load departments list");
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
 
   // Fetch supervisors for the dropdown - now from main collection
   const fetchSupervisors = async () => {
@@ -389,18 +420,6 @@ const AddNewStaff = () => {
     }
   };
 
-  // Department options
-  const departmentOptions = [
-    { value: "hr", label: "HR" },
-    { value: "it", label: "IT" },
-    { value: "management", label: "Management" },
-    { value: "support", label: "Support" },
-    { value: "marketing", label: "Marketing" },
-    { value: "finance", label: "Finance" },
-    { value: "accounts", label: "Accounts" },
-    { value: "sales", label: "Sales" },
-  ];
-
   // Filter supervisors based on selected department
   const filteredSupervisors = selectedDepartment
     ? supervisors.filter((sup) => sup.department === selectedDepartment)
@@ -499,8 +518,21 @@ const AddNewStaff = () => {
                   name="department"
                   error={errors.department}
                   required
-                  options={departmentOptions}
+                  options={departments}
+                  disabled={loadingDepartments}
+                  placeholder={
+                    loadingDepartments
+                      ? "Loading departments..."
+                      : departments.length === 0
+                      ? "No departments available"
+                      : "Select department"
+                  }
                 />
+                {departments.length === 0 && !loadingDepartments && (
+                  <p className="text-amber-600 text-xs mt-1">
+                    No departments available. Please add departments first.
+                  </p>
+                )}
               </div>
               <div className="flex-1">
                 <InputField

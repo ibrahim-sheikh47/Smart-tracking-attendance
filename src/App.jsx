@@ -27,6 +27,7 @@ import UploadFile from "./ImgTest.jsx";
 import ManageSuperVisor from "./pages/SuperVisor/ManageSuperVisor.jsx";
 import AddNewSupervisor from "./pages/SuperVisor/AddNewSupervisor.jsx";
 import PayrollAdminSummary from "./components/PayrollSummary.jsx";
+import DepartmentManagement from "./pages/DepartmentManagement.jsx";
 
 // Component to enforce password change
 function PasswordChangeRedirect({ children, passwordNeedsChange }) {
@@ -221,6 +222,10 @@ function App() {
                     <Route
                       path="/admin-management"
                       element={<AdminManagement />}
+                    />
+                    <Route
+                      path="/manage-departments"
+                      element={<DepartmentManagement />}
                     />
                     <Route
                       path="/admin-management/add-new-admin"

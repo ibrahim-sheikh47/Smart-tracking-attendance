@@ -10,7 +10,14 @@ import InputField from "../../ui_components/InputField.jsx";
 // Import Firebase
 import { auth, functions } from "../../config/firebase.jsx";
 import { httpsCallable } from "firebase/functions";
-import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  getDocs,
+} from "firebase/firestore";
 
 // Define validation schema with Yup
 const validationSchema = yup.object().shape({
@@ -45,6 +52,8 @@ const AddNewSupervisor = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [currentAdmin, setCurrentAdmin] = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
   const currentUser = auth.currentUser;
 
@@ -60,6 +69,8 @@ const AddNewSupervisor = () => {
           if (adminDocSnap.exists()) {
             setCurrentAdmin(adminDocSnap.data());
             console.log("Current admin data:", adminDocSnap.data());
+            // After getting admin data, fetch departments
+            fetchDepartments();
           } else {
             console.error("No admin document found for current user");
             setSubmitError("Authentication error: Admin profile not found");
@@ -72,6 +83,34 @@ const AddNewSupervisor = () => {
 
     fetchCurrentAdmin();
   }, [currentUser]);
+
+  // Fetch departments from Firebase
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const db = getFirestore();
+      const departmentsRef = collection(db, "departments");
+      const departmentsSnapshot = await getDocs(departmentsRef);
+
+      const departmentsList = [];
+      departmentsSnapshot.forEach((doc) => {
+        const departmentData = doc.data();
+        departmentsList.push({
+          value: departmentData.name || doc.id,
+          label: departmentData.displayName || departmentData.name || doc.id,
+        });
+      });
+
+      // Sort departments alphabetically
+      departmentsList.sort((a, b) => a.label.localeCompare(b.label));
+      setDepartments(departmentsList);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      setSubmitError("Failed to load departments list");
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
 
   const {
     register,
@@ -184,18 +223,6 @@ const AddNewSupervisor = () => {
     }
   };
 
-  // Department options
-  const departmentOptions = [
-    { value: "hr", label: "HR" },
-    { value: "it", label: "IT" },
-    { value: "management", label: "Management" },
-    { value: "support", label: "Support" },
-    { value: "marketing", label: "Marketing" },
-    { value: "finance", label: "Finance" },
-    { value: "accounts", label: "Accounts" },
-    { value: "sales", label: "Sales" },
-  ];
-
   return (
     <div className="p-10">
       <div className="flex items-center justify-between">
@@ -277,8 +304,21 @@ const AddNewSupervisor = () => {
               name="department"
               error={errors.department}
               required
-              options={departmentOptions}
+              options={departments}
+              disabled={loadingDepartments}
+              placeholder={
+                loadingDepartments
+                  ? "Loading departments..."
+                  : departments.length === 0
+                  ? "No departments available"
+                  : "Select department"
+              }
             />
+            {departments.length === 0 && !loadingDepartments && (
+              <p className="text-amber-600 text-xs mt-1">
+                No departments available. Please add departments first.
+              </p>
+            )}
 
             <InputField
               placeholder="Enter Bio (Max 200 characters)"

@@ -14,6 +14,8 @@ import CustomButton from "../ui_components/CustomButton";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import CorporateFareIcon from '@mui/icons-material/CorporateFare';
+
 import SupervisorAccountOutlinedIcon from "@mui/icons-material/SupervisorAccountOutlined";
 
 const Sidebar = ({ userRole }) => {
@@ -39,18 +41,26 @@ const Sidebar = ({ userRole }) => {
   ];
 
   // Super admin specific menu item
-  const superAdminItem = {
-    text: "Admin Management",
-    icon: <AdminPanelSettingsIcon />,
-    path: "/admin-management",
-  };
+  const superAdminItem = [
+    {
+      text: "Admin Management",
+      icon: <AdminPanelSettingsIcon />,
+      path: "/admin-management",
+    },
+    {
+      text: "Manage Departments",
+      icon: <CorporateFareIcon  />,
+      path: "/manage-departments",
+    },
+  ];
 
   // Determine which menu items to show based on user role
   let menuItems = [];
 
   if (userRole === "superadmin") {
     // Super admins get the admin management option at the top, followed by all regular admin options
-    menuItems = [superAdminItem, ...baseMenuItems];
+    menuItems = [...superAdminItem, ...baseMenuItems];
+
   } else {
     // Regular admins just get the base menu items
     menuItems = baseMenuItems;
