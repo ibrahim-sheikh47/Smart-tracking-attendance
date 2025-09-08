@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import {
   Box,
@@ -54,13 +53,19 @@ const Payroll = () => {
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [currentFilter, setCurrentFilter] = useState({
+    filterType: "monthly",
+    selectedDate: "",
+    selectedMonth: new Date().getMonth(),
+    selectedYear: new Date().getFullYear(),
+    payrollData: null,
+  });
 
   // Get the current admin user
   useEffect(() => {
     const fetchCurrentAdmin = async () => {
       const auth = getAuth();
       const user = auth.currentUser;
-
       if (user) {
         try {
           // Get the admin document
@@ -95,15 +100,25 @@ const Payroll = () => {
   const fetchEmployees = async () => {
     try {
       if (!currentAdmin) return;
-
       setLoading(true);
+
       // Get employees from the main employees collection
       const employeesCollection = collection(firestoreDb, "employees");
       const employeeSnapshot = await getDocs(employeesCollection);
 
+      console.log("Total employees found:", employeeSnapshot.docs.length);
+
       const employeePromises = employeeSnapshot.docs.map(async (doc) => {
         const employeeData = doc.data();
         const employeeId = doc.id;
+
+        // Log employee data to debug department issue
+        console.log("Employee data for", employeeId, ":", {
+          firstName: employeeData.firstName,
+          lastName: employeeData.lastName,
+          department: employeeData.department,
+          allFields: Object.keys(employeeData),
+        });
 
         // Fetch check-ins for this employee
         const checkInsRef = collection(firestoreDb, "CheckIns");
@@ -175,16 +190,13 @@ const Payroll = () => {
           const matchingCheckOut = checkOuts.find(
             (checkOut) => checkOut.sessionId === checkIn.sessionId
           );
-
           if (matchingCheckOut) {
             const workingMinutes = differenceInMinutes(
               matchingCheckOut.time,
               checkIn.time
             );
-
             if (workingMinutes > 0) {
               totalWorkingMinutes += workingMinutes;
-
               // Calculate overtime (assuming 8 hours standard workday)
               const standardWorkdayMinutes = 8 * 60;
               if (workingMinutes > standardWorkdayMinutes) {
@@ -197,7 +209,6 @@ const Payroll = () => {
         // Convert minutes to hours and minutes format
         const totalWorkingHours = Math.floor(totalWorkingMinutes / 60);
         const remainingWorkingMinutes = totalWorkingMinutes % 60;
-
         const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60);
         const remainingOvertimeMinutes = totalOvertimeMinutes % 60;
 
@@ -206,7 +217,6 @@ const Payroll = () => {
           typeof employeeData.hourlyRate === "number"
             ? employeeData.hourlyRate
             : Number.parseFloat(employeeData.hourlyRate) || 15;
-
         const overtimeRate =
           typeof employeeData.overtimeRate === "number"
             ? employeeData.overtimeRate
@@ -222,11 +232,30 @@ const Payroll = () => {
         // Calculate total pay
         const totalPay = regularPay + overtimePay;
 
-        return {
+        // Handle department field - check multiple possible field names
+        let department = "N/A";
+        if (employeeData.department) {
+          department = employeeData.department;
+        } else if (employeeData.Department) {
+          department = employeeData.Department;
+        } else if (employeeData.dept) {
+          department = employeeData.dept;
+        } else if (employeeData.Dept) {
+          department = employeeData.Dept;
+        } else if (employeeData.departmentName) {
+          department = employeeData.departmentName;
+        }
+
+        const processedEmployee = {
           id: employeeId,
-          name: `${employeeData.firstName} ${employeeData.lastName}`,
+          name:
+            `${employeeData.firstName || ""} ${
+              employeeData.lastName || ""
+            }`.trim() || "Unknown Employee",
           comp: `D${Number(hourlyRate).toFixed(2)}`,
-          hours: `${employeeData.workingHours || 40} hours`,
+          hours: `${
+            employeeData.workingHours || employeeData.WorkingHours || 40
+          } hours`,
           overtime:
             totalOvertimeMinutes > 0
               ? `${totalOvertimeHours} hour${
@@ -235,21 +264,42 @@ const Payroll = () => {
                   remainingOvertimeMinutes !== 1 ? "s" : ""
                 }`
               : "None",
-          avatar: employeeData.photoURL || "",
-          department: employeeData.department || "N/A",
+          avatar: employeeData.photoURL || employeeData.avatar || "",
+          department: department,
           totalWorkingTime: `${totalWorkingHours} hour${
             totalWorkingHours !== 1 ? "s" : ""
           } ${remainingWorkingMinutes} min${
             remainingWorkingMinutes !== 1 ? "s" : ""
           }`,
           totalPay: `D${totalPay.toFixed(2)}`,
-          email: employeeData.email,
-          phoneNumber: employeeData.phoneNumber,
-          adminId: employeeData.adminId,
+          email: employeeData.email || employeeData.Email || "",
+          phoneNumber:
+            employeeData.phoneNumber ||
+            employeeData.phone ||
+            employeeData.Phone ||
+            "",
+          adminId: employeeData.adminId || employeeData.AdminId || "",
         };
+
+        console.log("Processed employee:", {
+          id: processedEmployee.id,
+          name: processedEmployee.name,
+          department: processedEmployee.department,
+          originalDepartment: employeeData.department,
+        });
+
+        return processedEmployee;
       });
 
       const employeeList = await Promise.all(employeePromises);
+      console.log(
+        "Final employee list with departments:",
+        employeeList.map((emp) => ({
+          name: emp.name,
+          department: emp.department,
+        }))
+      );
+
       setEmployees(employeeList);
       setError(null);
     } catch (err) {
@@ -305,6 +355,10 @@ const Payroll = () => {
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleFilterChange = (filterInfo) => {
+    setCurrentFilter(filterInfo);
+  };
 
   // Calculate pagination
   const indexOfLastEmployee = page * rowsPerPage;
@@ -362,7 +416,11 @@ const Payroll = () => {
       </Paper>
 
       {activeTab === 0 ? (
-        <PayrollSummary employees={employees} loading={loading} />
+        <PayrollSummary
+          employees={employees}
+          loading={loading}
+          onFilterChange={handleFilterChange}
+        />
       ) : (
         <Paper sx={{ p: 3, borderRadius: 2 }}>
           <Box
@@ -376,10 +434,9 @@ const Payroll = () => {
             <Typography variant="subtitle1" fontWeight="bold">
               Employees Payroll Reports
             </Typography>
-
             <Box sx={{ display: "flex", gap: 2 }}>
               <TextField
-                placeholder="Search..."
+                placeholder="Search by name or department..."
                 size="small"
                 value={searchTerm}
                 onChange={handleSearch}
@@ -390,9 +447,8 @@ const Payroll = () => {
                     </InputAdornment>
                   ),
                 }}
-                sx={{ width: 220 }}
+                sx={{ width: 250 }}
               />
-
               <FormControl size="small" sx={{ minWidth: 100 }}>
                 <Select
                   value={rowsPerPage.toString()}
@@ -422,6 +478,7 @@ const Payroll = () => {
                       <TableCell padding="checkbox"></TableCell>
                       <TableCell>ID</TableCell>
                       <TableCell>Employee Name</TableCell>
+                      <TableCell>Department</TableCell>
                       <TableCell>Comp/Hour</TableCell>
                       <TableCell>Hours/wk</TableCell>
                       <TableCell>Overtime</TableCell>
@@ -430,7 +487,6 @@ const Payroll = () => {
                   <TableBody>
                     {currentEmployees.map((employee, index) => {
                       const isItemSelected = isSelected(employee.id);
-
                       return (
                         <TableRow
                           key={employee.id}
@@ -480,6 +536,23 @@ const Payroll = () => {
                               {employee.name}
                             </Box>
                           </TableCell>
+                          <TableCell>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color:
+                                  employee.department === "N/A"
+                                    ? "text.secondary"
+                                    : "text.primary",
+                                fontStyle:
+                                  employee.department === "N/A"
+                                    ? "italic"
+                                    : "normal",
+                              }}
+                            >
+                              {employee.department}
+                            </Typography>
+                          </TableCell>
                           <TableCell>{employee.comp}</TableCell>
                           <TableCell>{employee.hours}</TableCell>
                           <TableCell>{employee.overtime}</TableCell>
@@ -488,7 +561,7 @@ const Payroll = () => {
                     })}
                     {currentEmployees.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                        <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
                           {filteredEmployees.length === 0 ? (
                             searchTerm ? (
                               <Typography>
@@ -506,7 +579,6 @@ const Payroll = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-
               <Box
                 sx={{
                   display: "flex",
@@ -538,6 +610,11 @@ const Payroll = () => {
         onClose={() => setExportModalOpen(false)}
         data={employees}
         title="Staff Payroll Data"
+        filterType={currentFilter.filterType}
+        selectedDate={currentFilter.selectedDate}
+        selectedMonth={currentFilter.selectedMonth}
+        selectedYear={currentFilter.selectedYear}
+        payrollData={currentFilter.payrollData}
       />
     </Box>
   );

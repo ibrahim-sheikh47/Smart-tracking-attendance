@@ -1,18 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CheckIcon from "@mui/icons-material/Check";
 import CustomButton from "../../ui_components/CustomButton";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../../config/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { firestoreDb } from "../../config/firebase"; // Make sure to import your Firestore db
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("company");
   const [systemName, setSystemName] = useState("Tracking System");
   const [adminUsername, setAdminUsername] = useState("admin@admin.com");
   const [adminPassword, setAdminPassword] = useState("admin124@");
+  const [isSuper, setIsSuper] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   // eslint-disable-next-line no-unused-vars
   const [logoUploaded, setLogoUploaded] = useState(true);
+
+  // Function to check if current user is super admin
+  useEffect(() => {
+    const checkSuperAdmin = async () => {
+      if (auth.currentUser) {
+        try {
+          const adminDoc = await getDoc(doc(firestoreDb, "admins", auth.currentUser.uid));
+          if (adminDoc.exists()) {
+            const adminData = adminDoc.data();
+            setIsSuper(adminData.isSuper || false);
+          }
+        } catch (error) {
+          console.error("Error fetching admin data:", error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+
+    checkSuperAdmin();
+  }, []);
+
+  // Function to get display name based on admin status
+  const getDisplayName = () => {
+    if (loading) return "Loading...";
+    if (isSuper) return "Super Admin";
+    return auth.currentUser?.displayName || auth.currentUser?.email || "Admin";
+  };
 
   return (
     <div className="min-h-screen ">
@@ -124,10 +158,11 @@ export default function SettingsPage() {
                   Admin Username
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  value={auth.currentUser?.displayName}
+                  value={getDisplayName()}
                   onChange={(e) => setAdminUsername(e.target.value)}
+                  readOnly={isSuper} // Make it read-only for super admin
                 />
               </div>
             </div>

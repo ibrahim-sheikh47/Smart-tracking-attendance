@@ -133,26 +133,6 @@ const AdminManagement = () => {
         </Link>
       </div>
 
-      {/* Super Admin Display */}
-      {superAdmin && (
-        <Box
-          sx={{
-            backgroundColor: "#e0f7fa",
-            padding: 2,
-            borderRadius: 2,
-            marginBottom: 4,
-          }}
-        >
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: "bold", color: "#00796b" }}
-          >
-            Super Admin
-          </Typography>
-          <Typography>{superAdmin.email}</Typography>
-        </Box>
-      )}
-
       {/* Search bar */}
       <div className="mb-6">
         <TextField

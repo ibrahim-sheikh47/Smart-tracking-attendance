@@ -1,21 +1,40 @@
-"use client"
-
-import { useState } from "react"
-import { Dialog, DialogContent, Box, Typography, IconButton, Grid, Paper } from "@mui/material"
+"use client";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  Box,
+  Typography,
+  IconButton,
+  Grid,
+  Paper,
+} from "@mui/material";
 import {
   Close as CloseIcon,
   Link as LinkIcon,
   PictureAsPdf as PdfIcon,
   TableChart as ExcelIcon,
   Image as ImageIcon,
-} from "@mui/icons-material"
-import * as XLSX from "xlsx"
-import jsPDF from "jspdf"
-import autoTable from "jspdf-autotable"
-import html2canvas from "html2canvas"
+} from "@mui/icons-material";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
+import { format, parseISO } from "date-fns";
+import HocLogo from "../assets/images/HocLogo.png"; // Adjust path if needed
 
-const ExportModal = ({ open, onClose, data, title = "Payroll Data" }) => {
-  const [loading, setLoading] = useState(false)
+const ExportModal = ({
+  open,
+  onClose,
+  data,
+  title = "Payroll Data",
+  filterType = "monthly",
+  selectedDate = null,
+  selectedMonth = null,
+  selectedYear = null,
+  payrollData = null,
+}) => {
+  const [loading, setLoading] = useState(false);
 
   const exportOptions = [
     {
@@ -53,245 +72,489 @@ const ExportModal = ({ open, onClose, data, title = "Payroll Data" }) => {
       bgColor: "#dc3545",
       borderColor: "#dc3545",
     },
-  ]
+  ];
+
+  const getReportPeriodInfo = () => {
+    const printDate = format(new Date(), "EEEE, MMMM dd, yyyy");
+    let reportPeriod = "";
+    let dayName = "";
+
+    if (filterType === "daily" && selectedDate) {
+      const targetDate = parseISO(selectedDate);
+      dayName = format(targetDate, "EEEE");
+      reportPeriod = format(targetDate, "MMMM dd, yyyy");
+    } else if (selectedMonth !== null && selectedYear !== null) {
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      reportPeriod = `${monthNames[selectedMonth]} ${selectedYear}`;
+    }
+
+    return { printDate, reportPeriod, dayName };
+  };
+
+  // Filter payroll data based on the selected view
+  const getFilteredPayrollData = () => {
+    if (!payrollData || !payrollData.daily) {
+      return [];
+    }
+
+    if (filterType === "daily" && selectedDate) {
+      // For daily view, get only the selected day's data
+      const targetDay = payrollData.daily.find(
+        (day) => day.dateStr === selectedDate
+      );
+      if (targetDay) {
+        return targetDay.employeePayments
+          .filter((emp) => emp.status === "Present" && emp.pay > 0)
+          .map((emp) => ({
+            name: emp.name,
+            department: emp.department || "N/A",
+            date: targetDay.formattedDate,
+            dayName: targetDay.dayName,
+            totalPay: `D${emp.pay.toFixed(2)}`,
+            overtime: emp.overtime > 0 ? `${emp.overtime}h` : "None",
+            status: emp.status,
+          }));
+      }
+      return [];
+    } else {
+      // For monthly view, get all days with payroll data
+      const monthlyData = [];
+      payrollData.daily
+        .filter((day) => day.totalPay > 0)
+        .forEach((day) => {
+          day.employeePayments
+            .filter((emp) => emp.status === "Present" && emp.pay > 0)
+            .forEach((emp) => {
+              monthlyData.push({
+                name: emp.name,
+                department: emp.department || "N/A",
+                date: day.formattedDate,
+                dayName: day.dayName,
+                totalPay: `D${emp.pay.toFixed(2)}`,
+                overtime: emp.overtime > 0 ? `${emp.overtime}h` : "None",
+                status: emp.status,
+              });
+            });
+        });
+      return monthlyData;
+    }
+  };
 
   const handleExport = async (type) => {
-    setLoading(true)
+    setLoading(true);
     try {
       switch (type) {
         case "link":
-          await handleShareLink()
-          break
+          await handleShareLink();
+          break;
         case "pdf":
-          await handlePDFExport()
-          break
+          await handlePDFExport();
+          break;
         case "excel":
-          await handleExcelExport()
-          break
+          await handleExcelExport();
+          break;
         case "jpeg1":
         case "jpeg2":
-          await handleImageExport()
-          break
+          await handleImageExport();
+          break;
         default:
-          console.log("Export type not implemented:", type)
+          console.log("Export type not implemented:", type);
       }
     } catch (error) {
-      console.error("Export failed:", error)
-      alert("Export failed. Please try again.")
+      console.error("Export failed:", error);
+      alert("Export failed. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleShareLink = async () => {
-    const url = window.location.href
+    const url = window.location.href;
     if (navigator.share) {
       try {
         await navigator.share({
           title: title,
           url: url,
-        })
+        });
       } catch (error) {
         // Fallback to clipboard
-        await navigator.clipboard.writeText(url)
-        alert("Link copied to clipboard!")
+        await navigator.clipboard.writeText(url);
+        alert("Link copied to clipboard!");
       }
     } else {
       // Fallback to clipboard
-      await navigator.clipboard.writeText(url)
-      alert("Link copied to clipboard!")
+      await navigator.clipboard.writeText(url);
+      alert("Link copied to clipboard!");
     }
-    onClose()
-  }
+    onClose();
+  };
 
   const handlePDFExport = () => {
-    const doc = new jsPDF()
+    const doc = new jsPDF();
+    const { printDate, reportPeriod, dayName } = getReportPeriodInfo();
+    const filteredData = getFilteredPayrollData();
 
-    // Add title
-    doc.setFontSize(20)
-    doc.text(title, 20, 20)
+    const img = new Image();
+    img.src = HocLogo;
+    img.crossOrigin = "anonymous";
 
-    // Add date
-    doc.setFontSize(12)
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 35)
+    img.onload = () => {
+      // Create canvas to get base64
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const base64Image = canvas.toDataURL("image/png");
 
-    if (data && data.length > 0) {
-      // Prepare table data - adapt columns based on data structure
-      let tableColumns = []
-      let tableRows = []
+      // Maintain aspect ratio
+      const originalWidth = img.width;
+      const originalHeight = img.height;
+      const maxWidth = 40;
+      const ratio = originalHeight / originalWidth;
+      const calculatedHeight = maxWidth * ratio;
 
-      // Check data structure to determine columns
-      if (data[0].name && data[0].totalPay) {
-        // Payroll data
-        tableColumns = ["Name", "Department", "Total Pay", "Regular Pay", "Overtime"]
-        tableRows = data.map((item) => [
-          item.name || "N/A",
-          item.department || "N/A",
-          item.totalPay || "D0.00",
-          item.comp || "D0.00",
-          item.overtime || "None",
-        ])
-      } else if (data[0].formattedDate && data[0].checkInTime) {
-        // Attendance history data
-        tableColumns = ["Date", "Check-in", "Check-out", "Working Hours", "Status"]
-        tableRows = data.map((item) => [
-          item.formattedDate || "N/A",
-          item.checkInTime || "N/A",
-          item.checkOutTime || "N/A",
-          item.workingHours || "N/A",
-          item.status || "N/A",
-        ])
-      } else if (data[0].present !== undefined) {
-        // Reports data
-        tableColumns = ["Name", "Department", "Present", "Absents", "Overtime", "Working Hours"]
-        tableRows = data.map((item) => [
-          item.name || "N/A",
-          item.department || "N/A",
-          item.present || 0,
-          item.absents || 0,
-          item.overtime || "0 hours",
-          item.workingHours || "0 hours",
-        ])
-      } else if (typeof data === "object" && !Array.isArray(data)) {
-        // Single employee detail
-        tableColumns = ["Field", "Value"]
-        tableRows = Object.entries(data)
-          .filter(([key]) => !key.includes("Details") && key !== "avatar" && key !== "id" && key !== "adminId")
-          .map(([key, value]) => [
-            key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, " $1"),
-            value || "N/A",
-          ])
+      // Add logo (right corner)
+      doc.addImage(base64Image, "PNG", 150, 5, maxWidth, calculatedHeight);
+
+      // Title
+      doc.setFontSize(20);
+      doc.text(title, 20, 20);
+
+      // Report period information
+      doc.setFontSize(12);
+      if (filterType === "daily" && dayName) {
+        doc.text(`Report Day: ${dayName}, ${reportPeriod}`, 20, 35);
+        doc.text(`Print Date: ${printDate}`, 20, 45);
+      } else {
+        doc.text(`Report Period: ${reportPeriod}`, 20, 35);
+        doc.text(`Print Date: ${printDate}`, 20, 45);
       }
 
-      // Add table
-      autoTable(doc, {
-        head: [tableColumns],
-        body: tableRows,
-        startY: 50,
-        styles: {
-          fontSize: 10,
-          cellPadding: 3,
-        },
-        headStyles: {
-          fillColor: [61, 194, 150],
-          textColor: 255,
-        },
-      })
-    }
+      // Add payroll data table
+      if (filteredData && filteredData.length > 0) {
+        const tableColumns = [
+          "Employee Name",
+          "Department",
+          "Date",
+          "Day",
+          "Total Pay",
+          "Overtime",
+          "Status",
+        ];
+        const tableRows = filteredData.map((item) => [
+          item.name || "N/A",
+          item.department || "N/A",
+          item.date || "N/A",
+          item.dayName || "N/A",
+          item.totalPay || "D0.00",
+          item.overtime || "None",
+          item.status || "N/A",
+        ]);
 
-    // Save the PDF
-    doc.save(`${title.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`)
-    onClose()
-  }
+        // Calculate total pay for the period
+        const totalPay = filteredData.reduce((sum, item) => {
+          const pay = Number.parseFloat(item.totalPay.replace("D", "")) || 0;
+          return sum + pay;
+        }, 0);
+
+        // Add summary before table
+        doc.setFontSize(12);
+        doc.text(
+          `Total ${
+            filterType === "daily" ? "Daily" : "Monthly"
+          } Pay: D${totalPay.toFixed(2)}`,
+          20,
+          60
+        );
+        doc.text(`Total Records: ${filteredData.length}`, 20, 70);
+
+        // Add table to PDF
+        autoTable(doc, {
+          head: [tableColumns],
+          body: tableRows,
+          startY: 80,
+          styles: {
+            fontSize: 9,
+            cellPadding: 2,
+          },
+          headStyles: {
+            fillColor: [61, 194, 150],
+            textColor: 255,
+            fontSize: 10,
+          },
+          columnStyles: {
+            0: { cellWidth: 30 }, // Employee Name
+            1: { cellWidth: 25 }, // Department
+            2: { cellWidth: 25 }, // Date
+            3: { cellWidth: 20 }, // Day
+            4: { cellWidth: 25 }, // Total Pay
+            5: { cellWidth: 20 }, // Overtime
+            6: { cellWidth: 20 }, // Status
+          },
+        });
+      } else {
+        // No data message
+        doc.setFontSize(14);
+        doc.text(
+          `No payroll data available for ${
+            filterType === "daily" ? "this day" : "this month"
+          }.`,
+          20,
+          60
+        );
+      }
+
+      // Save the file with period information
+      const fileName =
+        filterType === "daily" && selectedDate
+          ? `${title.replace(/\s+/g, "_")}_${selectedDate}.pdf`
+          : `${title.replace(/\s+/g, "_")}_${reportPeriod.replace(
+              /\s+/g,
+              "_"
+            )}.pdf`;
+
+      doc.save(fileName);
+      onClose();
+    };
+
+    img.onerror = () => {
+      // Fallback without logo
+      const { printDate, reportPeriod, dayName } = getReportPeriodInfo();
+      const filteredData = getFilteredPayrollData();
+
+      doc.setFontSize(20);
+      doc.text(title, 20, 20);
+
+      doc.setFontSize(12);
+      if (filterType === "daily" && dayName) {
+        doc.text(`Report Day: ${dayName}, ${reportPeriod}`, 20, 35);
+        doc.text(`Print Date: ${printDate}`, 20, 45);
+      } else {
+        doc.text(`Report Period: ${reportPeriod}`, 20, 35);
+        doc.text(`Print Date: ${printDate}`, 20, 45);
+      }
+
+      // Add payroll data table (same as above)
+      if (filteredData && filteredData.length > 0) {
+        const tableColumns = [
+          "Employee Name",
+          "Department",
+          "Date",
+          "Day",
+          "Total Pay",
+          "Overtime",
+          "Status",
+        ];
+        const tableRows = filteredData.map((item) => [
+          item.name || "N/A",
+          item.department || "N/A",
+          item.date || "N/A",
+          item.dayName || "N/A",
+          item.totalPay || "D0.00",
+          item.overtime || "None",
+          item.status || "N/A",
+        ]);
+
+        const totalPay = filteredData.reduce((sum, item) => {
+          const pay = Number.parseFloat(item.totalPay.replace("D", "")) || 0;
+          return sum + pay;
+        }, 0);
+
+        doc.setFontSize(14);
+        doc.text(
+          `Total ${
+            filterType === "daily" ? "Daily" : "Monthly"
+          } Pay: D${totalPay.toFixed(2)}`,
+          20,
+          60
+        );
+        doc.text(`Total Records: ${filteredData.length}`, 20, 70);
+
+        autoTable(doc, {
+          head: [tableColumns],
+          body: tableRows,
+          startY: 80,
+          styles: {
+            fontSize: 9,
+            cellPadding: 2,
+          },
+          headStyles: {
+            fillColor: [61, 194, 150],
+            textColor: 255,
+            fontSize: 10,
+          },
+          columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 25 },
+            3: { cellWidth: 20 },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 20 },
+            6: { cellWidth: 20 },
+          },
+        });
+      } else {
+        doc.setFontSize(14);
+        doc.text(
+          `No payroll data available for ${
+            filterType === "daily" ? "this day" : "this month"
+          }.`,
+          20,
+          60
+        );
+      }
+
+      const fileName =
+        filterType === "daily" && selectedDate
+          ? `${title.replace(/\s+/g, "_")}_${selectedDate}.pdf`
+          : `${title.replace(/\s+/g, "_")}_${reportPeriod.replace(
+              /\s+/g,
+              "_"
+            )}.pdf`;
+
+      doc.save(fileName);
+      onClose();
+    };
+  };
 
   const handleExcelExport = () => {
-    if (!data) {
-      alert("No data to export")
-      return
+    const { printDate, reportPeriod, dayName } = getReportPeriodInfo();
+    const filteredData = getFilteredPayrollData();
+
+    if (!filteredData || filteredData.length === 0) {
+      alert("No payroll data to export for the selected period");
+      return;
     }
 
     // Prepare data for Excel
-    let excelData = []
+    const excelData = filteredData.map((record) => ({
+      "Employee Name": record.name || "N/A",
+      Department: record.department || "N/A",
+      Date: record.date || "N/A",
+      Day: record.dayName || "N/A",
+      "Total Pay": record.totalPay || "D0.00",
+      Overtime: record.overtime || "None",
+      Status: record.status || "N/A",
+    }));
 
-    if (Array.isArray(data) && data.length > 0) {
-      if (data[0].name && data[0].totalPay) {
-        // Payroll data
-        excelData = data.map((employee) => ({
-          "Employee Name": employee.name || "N/A",
-          Department: employee.department || "N/A",
-          Email: employee.email || "N/A",
-          Phone: employee.phoneNumber || "N/A",
-          "Hourly Rate": employee.comp || "D0.00",
-          "Working Hours": employee.hours || "0 hours",
-          Overtime: employee.overtime || "None",
-          "Total Pay": employee.totalPay || "D0.00",
-          "Total Working Time": employee.totalWorkingTime || "0 hours",
-        }))
-      } else if (data[0].formattedDate && data[0].checkInTime) {
-        // Attendance history data
-        excelData = data.map((record) => ({
-          Date: record.formattedDate || "N/A",
-          "Check-in Time": record.checkInTime || "N/A",
-          "Check-out Time": record.checkOutTime || "N/A",
-          "Working Hours": record.workingHours || "N/A",
-          Status: record.status || "N/A",
-        }))
-      } else if (data[0].present !== undefined) {
-        // Reports data
-        excelData = data.map((employee) => ({
-          "Employee Name": employee.name || "N/A",
-          Department: employee.department || "N/A",
-          Designation: employee.designation || "N/A",
-          Email: employee.email || "N/A",
-          Phone: employee.phoneNumber || "N/A",
-          "Present Days": employee.present || 0,
-          "Absent Days": employee.absents || 0,
-          Overtime: employee.overtime || "0 hours",
-          "Working Hours": employee.workingHours || "0 hours",
-        }))
-      }
-    } else if (typeof data === "object" && !Array.isArray(data)) {
-      // Single employee detail
-      excelData = [
-        Object.entries(data)
-          .filter(([key]) => !key.includes("Details") && key !== "avatar" && key !== "id" && key !== "adminId")
-          .reduce((obj, [key, value]) => {
-            obj[key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, " $1")] = value || "N/A"
-            return obj
-          }, {}),
-      ]
-    }
+    // Calculate total pay
+    const totalPay = filteredData.reduce((sum, item) => {
+      const pay = Number.parseFloat(item.totalPay.replace("D", "")) || 0;
+      return sum + pay;
+    }, 0);
+
+    // Add report metadata at the beginning
+    const metadataRows = [
+      { "Report Information": "Value" },
+      { "Report Information": "Report Title", Value: title },
+      {
+        "Report Information":
+          filterType === "daily" ? "Report Day" : "Report Period",
+        Value:
+          filterType === "daily" && dayName
+            ? `${dayName}, ${reportPeriod}`
+            : reportPeriod,
+      },
+      { "Report Information": "Print Date", Value: printDate },
+      {
+        "Report Information": `Total ${
+          filterType === "daily" ? "Daily" : "Monthly"
+        } Pay`,
+        Value: `D${totalPay.toFixed(2)}`,
+      },
+      { "Report Information": "Total Records", Value: filteredData.length },
+      { "Report Information": "", Value: "" }, // Empty row separator
+    ];
 
     // Create workbook and worksheet
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(excelData)
+    const wb = XLSX.utils.book_new();
+
+    // Create metadata worksheet
+    const metadataWs = XLSX.utils.json_to_sheet(metadataRows);
+    XLSX.utils.book_append_sheet(wb, metadataWs, "Report Info");
+
+    // Create data worksheet
+    const dataWs = XLSX.utils.json_to_sheet(excelData);
 
     // Set column widths
-    const colWidths = Array(Object.keys(excelData[0] || {}).length).fill({ wch: 15 })
-    ws["!cols"] = colWidths
+    const colWidths = Array(Object.keys(excelData[0] || {}).length).fill({
+      wch: 15,
+    });
+    dataWs["!cols"] = colWidths;
 
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, title.substring(0, 31)) // Excel sheet names limited to 31 chars
+    // Add data worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, dataWs, "Payroll Data");
 
-    // Save file
-    XLSX.writeFile(wb, `${title.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.xlsx`)
-    onClose()
-  }
+    // Save file with period information
+    const fileName =
+      filterType === "daily" && selectedDate
+        ? `${title.replace(/\s+/g, "_")}_${selectedDate}.xlsx`
+        : `${title.replace(/\s+/g, "_")}_${reportPeriod.replace(
+            /\s+/g,
+            "_"
+          )}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+    onClose();
+  };
 
   const handleImageExport = async () => {
     try {
       // Find the main content area to capture
-      const element = document.querySelector("[data-export-content]") || document.body
-
+      const element =
+        document.querySelector("[data-export-content]") || document.body;
       const canvas = await html2canvas(element, {
         backgroundColor: "#ffffff",
         scale: 2,
         logging: false,
         useCORS: true,
-      })
+      });
 
       // Convert to blob and download
       canvas.toBlob(
         (blob) => {
-          const url = URL.createObjectURL(blob)
-          const link = document.createElement("a")
-          link.href = url
-          link.download = `${title.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.jpg`
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-          URL.revokeObjectURL(url)
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+
+          const { reportPeriod } = getReportPeriodInfo();
+          const fileName =
+            filterType === "daily" && selectedDate
+              ? `${title.replace(/\s+/g, "_")}_${selectedDate}.jpg`
+              : `${title.replace(/\s+/g, "_")}_${reportPeriod.replace(
+                  /\s+/g,
+                  "_"
+                )}.jpg`;
+
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
         },
         "image/jpeg",
-        0.9,
-      )
-
-      onClose()
+        0.9
+      );
+      onClose();
     } catch (error) {
-      console.error("Image export failed:", error)
-      alert("Image export failed. Please try again.")
+      console.error("Image export failed:", error);
+      alert("Image export failed. Please try again.");
     }
-  }
+  };
 
   return (
     <Dialog
@@ -324,6 +587,28 @@ const ExportModal = ({ open, onClose, data, title = "Payroll Data" }) => {
           >
             <CloseIcon />
           </IconButton>
+
+          {/* Report Information */}
+          <Box sx={{ mb: 3, textAlign: "center" }}>
+            <Typography variant="h6" gutterBottom>
+              Export {title}
+            </Typography>
+            {(() => {
+              const { reportPeriod, dayName } = getReportPeriodInfo();
+              return (
+                <Typography variant="body2" color="text.secondary">
+                  {filterType === "daily" && dayName
+                    ? `${dayName}, ${reportPeriod}`
+                    : reportPeriod}
+                </Typography>
+              );
+            })()}
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {filterType === "daily"
+                ? "Daily Payroll Report"
+                : "Monthly Payroll Report"}
+            </Typography>
+          </Box>
 
           {/* Export Options */}
           <Grid container spacing={3} sx={{ mt: 2 }}>
@@ -418,9 +703,12 @@ const ExportModal = ({ open, onClose, data, title = "Payroll Data" }) => {
                       </Box>
                     )}
                   </Box>
-
                   {/* Label */}
-                  <Typography variant="body2" fontWeight="medium" color="text.primary">
+                  <Typography
+                    variant="body2"
+                    fontWeight="medium"
+                    color="text.primary"
+                  >
                     {option.label}
                   </Typography>
                 </Paper>
@@ -430,7 +718,7 @@ const ExportModal = ({ open, onClose, data, title = "Payroll Data" }) => {
         </Box>
       </DialogContent>
     </Dialog>
-  )
-}
+  );
+};
 
-export default ExportModal
+export default ExportModal;

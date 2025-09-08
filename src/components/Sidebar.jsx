@@ -161,7 +161,7 @@ const Sidebar = ({ userRole }) => {
       </List>
       <CustomButton
         title={"Logout"}
-        style={"bg-red-500 text-white mt-20"}
+        style={"bg-red-500 text-white mt-10"}
         onClick={handleSignout}
       />
     </Drawer>

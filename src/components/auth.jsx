@@ -21,6 +21,15 @@ export const Auth = () => {
     setError(null);
 
     try {
+      // ✅ Step 1: Sign in user FIRST (auth is required for Firestore access)
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      console.log("Logged in user:", userCredential.user);
+
+      // ✅ Step 2: THEN query Firestore (after authentication)
       const adminsRef = collection(firestoreDb, "admins");
       const emailQuery = query(adminsRef, where("email", "==", email));
       const querySnapshot = await getDocs(emailQuery);
@@ -38,23 +47,18 @@ export const Auth = () => {
       const isPasswordSet = adminData.isPasswordSet === true;
 
       if (loginMode === "admin" && isSuper) {
-        setError(
-          "This email belongs to a Super Admin account. Please select Super Admin to continue."
-        );
+        setError("Invalid Credentials");
         setLoading(false);
         return;
       }
 
       if (loginMode === "superadmin" && !isSuper) {
-        setError(
-          "This email belongs to a regular Admin account. Please select Admin to continue."
-        );
+        setError("Invalid Credentials");
         setLoading(false);
         return;
       }
 
-      await signInWithEmailAndPassword(auth, email, password);
-
+      // Store session
       sessionStorage.setItem("adminId", adminDoc.id);
       sessionStorage.setItem("passwordNeedsChange", isPasswordSet === false);
       sessionStorage.setItem("isSuper", isSuper);
@@ -92,6 +96,10 @@ export const Auth = () => {
         setError("Invalid email format.");
       } else if (error.code === "auth/too-many-requests") {
         setError("Too many failed login attempts. Please try again later.");
+      } else if (
+        error.message.includes("Missing or insufficient permissions")
+      ) {
+        setError("You don't have permission to access this resource.");
       } else {
         setError(
           error.message || "Failed to sign in. Please check your credentials."
@@ -112,7 +120,9 @@ export const Auth = () => {
   const buttonBgColor = loginMode === "admin" ? "#2563eb" : "#7c3aed"; // blue-600 or purple-600
   const buttonHoverBgColor = loginMode === "admin" ? "#3b82f6" : "#8b5cf6"; // blue-500 or purple-500
   const focusOutlineColor =
-    loginMode === "admin" ? "focus-visible:outline-blue-600" : "focus-visible:outline-purple-600";
+    loginMode === "admin"
+      ? "focus-visible:outline-blue-600"
+      : "focus-visible:outline-purple-600";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 py-4 px-4 sm:px-6 lg:px-8">
@@ -204,7 +214,10 @@ export const Auth = () => {
                 {showPassword ? (
                   <VisibilityIcon fontSize="small" className="text-gray-500" />
                 ) : (
-                  <VisibilityOffIcon fontSize="small" className="text-gray-500" />
+                  <VisibilityOffIcon
+                    fontSize="small"
+                    className="text-gray-500"
+                  />
                 )}
               </button>
             </div>
@@ -219,21 +232,30 @@ export const Auth = () => {
               }`}
               style={{ backgroundColor: buttonBgColor }}
               onMouseEnter={(e) => {
-                if (!loading) e.currentTarget.style.backgroundColor = buttonHoverBgColor;
+                if (!loading)
+                  e.currentTarget.style.backgroundColor = buttonHoverBgColor;
               }}
               onMouseLeave={(e) => {
-                if (!loading) e.currentTarget.style.backgroundColor = buttonBgColor;
+                if (!loading)
+                  e.currentTarget.style.backgroundColor = buttonBgColor;
               }}
             >
               {loading
                 ? "Signing in..."
-                : `Sign in as ${loginMode === "admin" ? "Admin" : "Super Admin"}`}
+                : `Sign in as ${
+                    loginMode === "admin" ? "Admin" : "Super Admin"
+                  }`}
             </button>
           </div>
         </div>
 
         <div className="mt-10">
           <img src={assets.HocLogoDesc} className="w-[70%]" alt="" />
+        </div>
+        <div className="font-semibold">
+          <p className="ml-28.5 text-[10px] -mt-2.5 text-gray-400">
+            Manager : Tobaski Sibi Tel : 7119110
+          </p>
         </div>
       </div>
     </div>

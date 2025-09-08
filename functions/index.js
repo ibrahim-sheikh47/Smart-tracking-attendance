@@ -347,18 +347,22 @@ exports.createPOSemployee = functions.https.onCall(async (response) => {
       !response.data ||
       !response.data.email ||
       !response.data.name ||
-      !response.data.phone
+      !response.data.phone ||
+      !response.data.assignedCategories ||
+      !Array.isArray(response.data.assignedCategories) ||
+      response.data.assignedCategories.length === 0
     ) {
       console.error("Invalid data received:", response.data);
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "The function must be called with valid POS employee data (name, email, phone)."
+        "The function must be called with valid POS employee data (name, email, phone, and at least one assigned category)."
       );
     }
 
     console.log("Name of new POS employee:", response.data.name);
     console.log("Email of new POS employee:", response.data.email);
     console.log("Phone of new POS employee:", response.data.phone);
+    console.log("Assigned Categories:", response.data.assignedCategories);
 
     // Split name into first and last name
     const nameParts = response.data.name.trim().split(" ");
@@ -388,6 +392,8 @@ exports.createPOSemployee = functions.https.onCall(async (response) => {
       phoneNumber: response.data.phone, // Changed to match existing structure
       phone: response.data.phone, // Keep both for compatibility
       role: "user", // Changed to match existing structure
+      assignedCategories: response.data.assignedCategories, // Added inventory categories
+      department: response.data.department || "Field Staff",
       status: "active",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -402,14 +408,18 @@ exports.createPOSemployee = functions.https.onCall(async (response) => {
       .doc(userRecord.uid)
       .set(posEmployeeData);
 
-    console.log("POS Employee data saved to Firestore");
+    console.log(
+      "POS Employee data saved to Firestore with assigned categories:",
+      response.data.assignedCategories
+    );
 
     // Return the created POS employee's data
     return {
       success: true,
       uid: userRecord.uid,
       user: posEmployeeData,
-      message: "POS Employee created successfully",
+      message:
+        "POS Employee created successfully with assigned inventory categories",
     };
   } catch (error) {
     console.error("Error creating new POS employee:", error);
@@ -558,5 +568,143 @@ exports.deletePOSadmin = functions.https.onCall(async (response) => {
   } catch (error) {
     console.error("Error deleting POS admin:", error);
     throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+// Cloud funnctio to delete a POS user
+// Add this Cloud Function to your Firebase Functions index.js file
+
+// Cloud function to delete a POS user (from both Auth and Firestore)
+exports.deletePOSUser = functions.https.onCall(async (response) => {
+  try {
+    console.log("Data from deletePOSUser():", response.data);
+
+    // Validate required fields
+    if (!response.data || !response.data.uid) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing user UID to delete."
+      );
+    }
+
+    const userId = response.data.uid;
+    const collection = response.data.collection || "POS-users";
+
+    console.log(`Attempting to delete user ${userId} from collection ${collection}`);
+
+    // Check if target user exists in the specified collection
+    const userRef = await admin
+      .firestore()
+      .collection(collection)
+      .doc(userId)
+      .get();
+
+    if (!userRef.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        `User not found in ${collection} collection.`
+      );
+    }
+
+    const userData = userRef.data();
+    console.log("User data to be deleted:", userData);
+
+    // Delete from Firestore first
+    await admin
+      .firestore()
+      .collection(collection)
+      .doc(userId)
+      .delete();
+
+    console.log(`Successfully deleted user from ${collection} collection`);
+
+    // Delete the user from Firebase Auth
+    try {
+      await admin.auth().deleteUser(userId);
+      console.log("Successfully deleted user from Firebase Auth");
+    } catch (authError) {
+      console.warn("User may not exist in Auth or already deleted:", authError.message);
+      // Don't throw error here as Firestore deletion was successful
+    }
+
+    return {
+      success: true,
+      message: `User deleted successfully from both ${collection} and Firebase Auth`,
+      deletedUser: {
+        uid: userId,
+        name: userData.name || `${userData.firstName} ${userData.lastName}`,
+        email: userData.email
+      }
+    };
+  } catch (error) {
+    console.error("Error deleting POS user:", error);
+
+    // Return appropriate error message
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    } else {
+      throw new functions.https.HttpsError("internal", error.message);
+    }
+  }
+});
+
+// Alternative function specifically for POS employees if you want more specific handling
+exports.deletePOSEmployee = functions.https.onCall(async (response) => {
+  try {
+    console.log("Data from deletePOSEmployee():", response.data);
+
+    if (!response.data || !response.data.uid) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing employee UID to delete."
+      );
+    }
+
+    const employeeId = response.data.uid;
+
+    // Check if target user is a POS employee
+    const employeeRef = await admin
+      .firestore()
+      .collection("POS-users")
+      .doc(employeeId)
+      .get();
+
+    if (!employeeRef.exists) {
+      throw new functions.https.HttpsError("not-found", "POS Employee not found.");
+    }
+
+    const employeeData = employeeRef.data();
+
+    // Delete from Firestore first
+    await admin
+      .firestore()
+      .collection("POS-users")
+      .doc(employeeId)
+      .delete();
+
+    // Delete the user from Firebase Auth
+    try {
+      await admin.auth().deleteUser(employeeId);
+    } catch (authError) {
+      console.warn("User may not exist in Auth:", authError.message);
+    }
+
+    return {
+      success: true,
+      message: "POS Employee deleted successfully",
+      deletedEmployee: {
+        uid: employeeId,
+        name: employeeData.name || `${employeeData.firstName} ${employeeData.lastName}`,
+        email: employeeData.email,
+        assignedCategories: employeeData.assignedCategories
+      }
+    };
+  } catch (error) {
+    console.error("Error deleting POS employee:", error);
+
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    } else {
+      throw new functions.https.HttpsError("internal", error.message);
+    }
   }
 });
