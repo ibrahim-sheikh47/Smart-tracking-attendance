@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -49,7 +49,6 @@ const Payroll = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -68,7 +67,6 @@ const Payroll = () => {
       const user = auth.currentUser;
       if (user) {
         try {
-          // Get the admin document
           const adminDoc = await getDoc(doc(firestoreDb, "admins", user.uid));
           if (adminDoc.exists()) {
             setCurrentAdmin({ id: adminDoc.id, ...adminDoc.data() });
@@ -88,39 +86,21 @@ const Payroll = () => {
     fetchCurrentAdmin();
   }, []);
 
-  // Fetch employees when admin data is available
-  useEffect(() => {
-    if (currentAdmin) {
-      fetchEmployees();
-    } else {
-      console.log("Waiting for admin data before fetching employees");
-    }
-  }, [currentAdmin]);
+  // Fetch employees - memoized to prevent unnecessary re-fetches
+  const fetchEmployees = useCallback(async () => {
+    if (!currentAdmin) return;
 
-  const fetchEmployees = async () => {
     try {
-      if (!currentAdmin) return;
       setLoading(true);
 
-      // Get employees from the main employees collection
       const employeesCollection = collection(firestoreDb, "employees");
       const employeeSnapshot = await getDocs(employeesCollection);
-
-      console.log("Total employees found:", employeeSnapshot.docs.length);
 
       const employeePromises = employeeSnapshot.docs.map(async (doc) => {
         const employeeData = doc.data();
         const employeeId = doc.id;
 
-        // Log employee data to debug department issue
-        console.log("Employee data for", employeeId, ":", {
-          firstName: employeeData.firstName,
-          lastName: employeeData.lastName,
-          department: employeeData.department,
-          allFields: Object.keys(employeeData),
-        });
-
-        // Fetch check-ins for this employee
+        // Fetch check-ins
         const checkInsRef = collection(firestoreDb, "CheckIns");
         const checkInsQuery = query(
           checkInsRef,
@@ -128,7 +108,7 @@ const Payroll = () => {
         );
         const checkInsSnapshot = await getDocs(checkInsQuery);
 
-        // Fetch check-outs for this employee
+        // Fetch check-outs
         const checkOutsRef = collection(firestoreDb, "CheckOuts");
         const checkOutsQuery = query(
           checkOutsRef,
@@ -136,7 +116,7 @@ const Payroll = () => {
         );
         const checkOutsSnapshot = await getDocs(checkOutsQuery);
 
-        // Process check-ins and check-outs
+        // Process check-ins
         const checkIns = [];
         checkInsSnapshot.forEach((doc) => {
           const data = doc.data();
@@ -159,6 +139,7 @@ const Payroll = () => {
           }
         });
 
+        // Process check-outs
         const checkOuts = [];
         checkOutsSnapshot.forEach((doc) => {
           const data = doc.data();
@@ -181,11 +162,10 @@ const Payroll = () => {
           }
         });
 
-        // Calculate total working hours and overtime
+        // Calculate working hours
         let totalWorkingMinutes = 0;
         let totalOvertimeMinutes = 0;
 
-        // Match check-ins with check-outs by sessionId
         checkIns.forEach((checkIn) => {
           const matchingCheckOut = checkOuts.find(
             (checkOut) => checkOut.sessionId === checkIn.sessionId
@@ -197,7 +177,6 @@ const Payroll = () => {
             );
             if (workingMinutes > 0) {
               totalWorkingMinutes += workingMinutes;
-              // Calculate overtime (assuming 8 hours standard workday)
               const standardWorkdayMinutes = 8 * 60;
               if (workingMinutes > standardWorkdayMinutes) {
                 totalOvertimeMinutes += workingMinutes - standardWorkdayMinutes;
@@ -206,13 +185,12 @@ const Payroll = () => {
           }
         });
 
-        // Convert minutes to hours and minutes format
         const totalWorkingHours = Math.floor(totalWorkingMinutes / 60);
         const remainingWorkingMinutes = totalWorkingMinutes % 60;
         const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60);
         const remainingOvertimeMinutes = totalOvertimeMinutes % 60;
 
-        // Calculate compensation
+        // Calculate pay
         const hourlyRate =
           typeof employeeData.hourlyRate === "number"
             ? employeeData.hourlyRate
@@ -222,17 +200,12 @@ const Payroll = () => {
             ? employeeData.overtimeRate
             : Number.parseFloat(employeeData.overtimeRate) || hourlyRate * 1.5;
 
-        // Calculate regular pay (excluding overtime)
         const regularHours = totalWorkingHours - totalOvertimeHours;
         const regularPay = regularHours > 0 ? regularHours * hourlyRate : 0;
-
-        // Calculate overtime pay
         const overtimePay = totalOvertimeHours * overtimeRate;
-
-        // Calculate total pay
         const totalPay = regularPay + overtimePay;
 
-        // Handle department field - check multiple possible field names
+        // Handle department
         let department = "N/A";
         if (employeeData.department) {
           department = employeeData.department;
@@ -246,7 +219,7 @@ const Payroll = () => {
           department = employeeData.departmentName;
         }
 
-        const processedEmployee = {
+        return {
           id: employeeId,
           name:
             `${employeeData.firstName || ""} ${
@@ -280,93 +253,91 @@ const Payroll = () => {
             "",
           adminId: employeeData.adminId || employeeData.AdminId || "",
         };
-
-        console.log("Processed employee:", {
-          id: processedEmployee.id,
-          name: processedEmployee.name,
-          department: processedEmployee.department,
-          originalDepartment: employeeData.department,
-        });
-
-        return processedEmployee;
       });
 
       const employeeList = await Promise.all(employeePromises);
-      console.log(
-        "Final employee list with departments:",
-        employeeList.map((emp) => ({
-          name: emp.name,
-          department: emp.department,
-        }))
-      );
-
       setEmployees(employeeList);
       setError(null);
     } catch (err) {
       console.error("Error fetching employee data:", err);
-      if (err.code) {
-        console.error(`Firebase error code: ${err.code}`);
-      }
       setError(`Failed to load employee data: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentAdmin]);
 
-  const handleChangePage = (event, newPage) => {
+  // Fetch employees when admin is available
+  useEffect(() => {
+    if (currentAdmin) {
+      fetchEmployees();
+    }
+  }, [currentAdmin, fetchEmployees]);
+
+  const handleChangePage = useCallback((event, newPage) => {
     setPage(newPage);
-  };
+  }, []);
 
-  const handleChangeRowsPerPage = (event) => {
+  const handleChangeRowsPerPage = useCallback((event) => {
     setRowsPerPage(Number.parseInt(event.target.value, 10));
     setPage(1);
-  };
+  }, []);
 
-  const handleSearch = (event) => {
+  const handleSearch = useCallback((event) => {
     setSearchTerm(event.target.value);
-  };
+    setPage(1); // Reset to first page on search
+  }, []);
 
-  const handleSelectOne = (event, id) => {
-    const selectedIndex = selected.indexOf(id);
-    let newSelected = [];
+  const handleSelectOne = useCallback((event, id) => {
+    // Stop event propagation to prevent conflicts
+    event.stopPropagation();
 
-    if (selectedIndex === -1) {
-      newSelected = [...selected, id];
-    } else {
-      newSelected = selected.filter((itemId) => itemId !== id);
-    }
+    setSelected((prevSelected) => {
+      const selectedIndex = prevSelected.indexOf(id);
+      if (selectedIndex === -1) {
+        return [...prevSelected, id];
+      }
+      return prevSelected.filter((itemId) => itemId !== id);
+    });
+  }, []);
 
-    setSelected(newSelected);
-    setSelectAll(newSelected.length === filteredEmployees.length);
-  };
-
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = useCallback((event, newValue) => {
     setActiveTab(newValue);
-  };
+  }, []);
 
-  const handleExportClick = () => {
+  const handleExportClick = useCallback(() => {
     setExportModalOpen(true);
-  };
+  }, []);
 
-  const isSelected = (id) => selected.indexOf(id) !== -1;
-
-  const filteredEmployees = employees.filter(
-    (employee) =>
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleFilterChange = (filterInfo) => {
+  const handleFilterChange = useCallback((filterInfo) => {
     setCurrentFilter(filterInfo);
-  };
+  }, []);
 
-  // Calculate pagination
-  const indexOfLastEmployee = page * rowsPerPage;
-  const indexOfFirstEmployee = indexOfLastEmployee - rowsPerPage;
-  const currentEmployees = filteredEmployees.slice(
-    indexOfFirstEmployee,
-    indexOfLastEmployee
+  const handleEmployeeClick = useCallback(
+    (event, employee) => {
+      // Stop propagation to prevent row selection
+      event.stopPropagation();
+      navigate(
+        `/payroll/payroll-detail/${employee.id}?adminId=${employee.adminId}`
+      );
+    },
+    [navigate]
   );
+
+  // Memoized filtered employees
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(
+      (employee) =>
+        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [employees, searchTerm]);
+
+  // Memoized current page employees
+  const currentEmployees = useMemo(() => {
+    const indexOfLastEmployee = page * rowsPerPage;
+    const indexOfFirstEmployee = indexOfLastEmployee - rowsPerPage;
+    return filteredEmployees.slice(indexOfFirstEmployee, indexOfLastEmployee);
+  }, [filteredEmployees, page, rowsPerPage]);
 
   // Get initials for avatar fallback
   const getInitials = (name) => {
@@ -377,11 +348,11 @@ const Payroll = () => {
     }`.toUpperCase();
   };
 
+  const indexOfLastEmployee = page * rowsPerPage;
+  const indexOfFirstEmployee = indexOfLastEmployee - rowsPerPage;
+
   return (
-    <Box
-      sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}
-      data-export-content
-    >
+    <Box sx={{ p: 3, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
       <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
         <Box
           sx={{
@@ -452,7 +423,7 @@ const Payroll = () => {
               <FormControl size="small" sx={{ minWidth: 100 }}>
                 <Select
                   value={rowsPerPage.toString()}
-                  onChange={(e) => handleChangeRowsPerPage(e)}
+                  onChange={handleChangeRowsPerPage}
                   renderValue={(value) => `Show: ${value}`}
                   IconComponent={KeyboardArrowDownIcon}
                 >
@@ -486,7 +457,7 @@ const Payroll = () => {
                   </TableHead>
                   <TableBody>
                     {currentEmployees.map((employee, index) => {
-                      const isItemSelected = isSelected(employee.id);
+                      const isItemSelected = selected.includes(employee.id);
                       return (
                         <TableRow
                           key={employee.id}
@@ -495,6 +466,7 @@ const Payroll = () => {
                           onClick={(event) =>
                             handleSelectOne(event, employee.id)
                           }
+                          sx={{ cursor: "pointer" }}
                         >
                           <TableCell padding="checkbox"></TableCell>
                           <TableCell>
@@ -511,11 +483,7 @@ const Payroll = () => {
                                   color: "#009688",
                                 },
                               }}
-                              onClick={() =>
-                                navigate(
-                                  `/payroll/payroll-detail/${employee.id}?adminId=${employee.adminId}`
-                                )
-                              }
+                              onClick={(e) => handleEmployeeClick(e, employee)}
                             >
                               {employee.avatar ? (
                                 <Avatar
@@ -604,7 +572,6 @@ const Payroll = () => {
         </Paper>
       )}
 
-      {/* Export Modal */}
       <ExportModal
         open={exportModalOpen}
         onClose={() => setExportModalOpen(false)}

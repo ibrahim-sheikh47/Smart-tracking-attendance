@@ -14,8 +14,7 @@ import CustomButton from "../ui_components/CustomButton";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
-import CorporateFareIcon from '@mui/icons-material/CorporateFare';
-
+import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import SupervisorAccountOutlinedIcon from "@mui/icons-material/SupervisorAccountOutlined";
 
 const Sidebar = ({ userRole }) => {
@@ -49,7 +48,7 @@ const Sidebar = ({ userRole }) => {
     },
     {
       text: "Manage Departments",
-      icon: <CorporateFareIcon  />,
+      icon: <CorporateFareIcon />,
       path: "/manage-departments",
     },
   ];
@@ -58,13 +57,22 @@ const Sidebar = ({ userRole }) => {
   let menuItems = [];
 
   if (userRole === "superadmin") {
-    // Super admins get the admin management option at the top, followed by all regular admin options
     menuItems = [...superAdminItem, ...baseMenuItems];
-
   } else {
-    // Regular admins just get the base menu items
     menuItems = baseMenuItems;
   }
+
+  // Helper function to check if a path is active
+  const isPathActive = (itemPath) => {
+    // Exact match for the base path
+    if (currentPath === itemPath) return true;
+
+    // Check if current path starts with item path followed by a slash
+    // This ensures /payroll doesn't match /reports, etc.
+    if (currentPath.startsWith(itemPath + "/")) return true;
+
+    return false;
+  };
 
   const handleSignout = async () => {
     try {
@@ -94,7 +102,6 @@ const Sidebar = ({ userRole }) => {
         <div className="flex items-center gap-3">
           <img src={assets.Shape} alt="" />
           <div>
-            {" "}
             <Typography variant="p" className="text-[#2C3E50] font-medium">
               K.M.C Smart Tracking
             </Typography>
@@ -114,50 +121,51 @@ const Sidebar = ({ userRole }) => {
       </div>
 
       <List>
-        {menuItems.map((item) => (
-          <ListItem
-            button
-            key={item.text}
-            component={Link}
-            to={item.path}
-            className={`mt-3
-              ${
-                currentPath.startsWith(item.path)
+        {menuItems.map((item) => {
+          const isActive = isPathActive(item.path);
+
+          return (
+            <ListItem
+              button
+              key={item.text}
+              component={Link}
+              to={item.path}
+              className={`mt-3 ${
+                isActive
                   ? "bg-[#3DC2960D] text-[#3DC296] border border-[#3DC2961A] rounded-lg"
                   : ""
               }`}
-          >
-            <ListItemIcon
-              className={
-                currentPath.startsWith(item.path)
-                  ? "text-[#3DC296] -mr-4"
-                  : "text-[#2C3E50] -mr-4"
-              }
             >
-              {typeof item.icon === "string" ? (
-                <img
-                  src={item.icon}
-                  alt=""
-                  style={{
-                    filter: currentPath.startsWith(item.path)
-                      ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
-                      : "none",
-                  }}
-                />
-              ) : (
-                React.cloneElement(item.icon, {
-                  sx: {
-                    filter: currentPath.startsWith(item.path)
-                      ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
-                      : "none",
-                  },
-                })
-              )}
-            </ListItemIcon>
+              <ListItemIcon
+                className={
+                  isActive ? "text-[#3DC296] -mr-4" : "text-[#2C3E50] -mr-4"
+                }
+              >
+                {typeof item.icon === "string" ? (
+                  <img
+                    src={item.icon}
+                    alt=""
+                    style={{
+                      filter: isActive
+                        ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
+                        : "none",
+                    }}
+                  />
+                ) : (
+                  React.cloneElement(item.icon, {
+                    sx: {
+                      filter: isActive
+                        ? "brightness(0) saturate(100%) invert(43%) sepia(72%) saturate(269%) hue-rotate(104deg) brightness(96%) contrast(91%)"
+                        : "none",
+                    },
+                  })
+                )}
+              </ListItemIcon>
 
-            <ListItemText primary={item.text} />
-          </ListItem>
-        ))}
+              <ListItemText primary={item.text} />
+            </ListItem>
+          );
+        })}
       </List>
       <CustomButton
         title={"Logout"}
